@@ -20,6 +20,31 @@ private:
 	std::vector<Clr> sample_box_colors;
 	cgv::render::surface_render_style box_render_style;
 	void generate_sample_boxes();
+protected:
+	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
+	//@{
+	/// read access to the i-th point in the point cloud 
+	const Pnt& pnt(Idx i) const { return pc.pnt(i); }
+	/// read access to the i-th point normal in the point cloud 
+	const Nml& nml(Idx i) const { return pc.nml(i); }
+	/// read access to the i-th point in the point cloud 
+	const Pnt& transformed_pnt(Idx i) const { return pc.transformed_pnt(i); }
+	/// read access to component index of point 
+	unsigned pnt_comp_idx(Idx i) const { return pc.component_index(i); }
+	/// read access to component rotation
+	const Qat& comp_rot(Idx i) const { return pc.component_rotation(i); }
+	/// write access to component rotation
+	Qat& comp_rot(Idx i) { return pc.component_rotation(i); }
+	/// read access to component translation
+	const Dir& comp_trans(Idx i) const { return pc.component_translation(i); }
+	/// write access to component tranlation
+	Dir& comp_trans(Idx i) { return pc.component_translation(i); }
+	/// read access to component color
+	const RGBA& comp_color(Idx i) const { return pc.component_color(i); }
+	/// write access to component color
+	RGBA& comp_color(Idx i) { return pc.component_color(i); }
+	//@}	
+
 public:
 	/// construct viewer with default configuration
 	vr_point_cloud_aligner();

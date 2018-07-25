@@ -87,9 +87,13 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 {
 	point_cloud_interactable::draw(ctx);
 
-	// draw array of boxes
+	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
 	b_renderer.set_render_style(box_render_style);
+
+	// this is actually already set to false in gl_point_cloud_drawable but repeated here to make sure that you notice that when specifying boxes with min and max points, position_is_center must be false in renderer
+	b_renderer.set_position_is_center(false);
 	b_renderer.set_position_array(ctx, &sample_boxes[0].get_min_pnt(), sample_boxes.size(), sizeof(Box));
+	// max points are passed to extent array in case of position_is_center is false
 	b_renderer.set_extent_array(ctx, &sample_boxes[0].get_max_pnt(), sample_boxes.size(), sizeof(Box));
 	b_renderer.set_color_array(ctx, &sample_box_colors[0], sample_box_colors.size());
 	b_renderer.validate_and_enable(ctx);
