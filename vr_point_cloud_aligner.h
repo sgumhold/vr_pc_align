@@ -28,7 +28,7 @@ protected:
 	/// read access to the i-th point normal in the point cloud 
 	const Nml& nml(Idx i) const { return pc.nml(i); }
 	/// read access to the i-th point in the point cloud 
-	const Pnt& transformed_pnt(Idx i) const { return pc.transformed_pnt(i); }
+	Pnt transformed_pnt(Idx i) const { return pc.transformed_pnt(i); }
 	/// read access to component index of point 
 	unsigned pnt_comp_idx(Idx i) const { return pc.component_index(i); }
 	/// read access to component rotation
