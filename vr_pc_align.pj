@@ -13,6 +13,6 @@ addDependencies=["opengl","glu"];
 addSharedDefines=["VR_PC_ALIGN_EXPORTS"];
 addCommandLineArguments=[
 	'config:"'.INPUT_DIR.'/vr_pc_align.def"',
-	"type(shader_config):shader_path='".INPUT_DIR.";".CGV_DIR."/libs/cgv_gl/glsl;".CGV_DIR."/libs/point_cloud/glsl'"
+	["type(shader_config):shader_path='".INPUT_DIR.";".CGV_DIR."/libs/cgv_gl/glsl;".CGV_DIR."/libs/point_cloud/glsl'", "BEFORE", "vr_pc_align"]
 ];
 
