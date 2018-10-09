@@ -17,9 +17,17 @@ protected:
 	size_t sample_member_cols;
 private:
 	std::vector<Box> sample_boxes;
+	std::vector<Box> room_boxes;
 	std::vector<Clr> sample_box_colors;
+	std::vector<Clr> room_colors;
 	cgv::render::surface_render_style box_render_style;
 	void generate_sample_boxes();
+
+	//Generates a room Box, Table and pointcloud holders
+	void generate_room_boxes();
+	//Helper function
+	Clr generate_a_valid_color(int color);
+
 protected:
 	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
 	//@{

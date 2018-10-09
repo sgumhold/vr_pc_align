@@ -25,14 +25,109 @@ void vr_point_cloud_aligner::generate_sample_boxes()
 	}
 }
 
+void vr_point_cloud_aligner::generate_room_boxes()
+{
+	room_boxes.clear();
+	room_colors.clear();
+	Box room;
+	float x_room_min= 0, y_room_min= 0, z_room_min= -.2;
+	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
+	room.add_point(Pnt(Crd(5), Crd(5), Crd(0)));
+	room_boxes.push_back(room);
+	room_colors.push_back(generate_a_valid_color(0));
+
+	Box wall1;
+	wall1.add_point(Pnt(Crd(x_room_min - 0.2), Crd(y_room_min), Crd(z_room_min)));
+	wall1.add_point(Pnt(Crd(x_room_min), Crd(5), Crd(5)));
+	room_boxes.push_back(wall1);
+	room_colors.push_back(generate_a_valid_color(3));
+
+	//The table in the middle of the room
+	Box tableTop;
+	Box tableLeg1;
+	Box tableLeg2;
+	Box tableLeg3;
+	Box tableLeg4;
+
+	float tableTopCorner1 = 1.5, tableTopCorner2 = 3;
+	tableTop.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
+	tableTop.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.5)));
+	room_boxes.push_back(tableTop);
+	room_colors.push_back(generate_a_valid_color(1));
+	
+	//Maybe instanciate the leg with different coordinates?
+	tableLeg1.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
+	tableLeg1.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + .2), Crd(0)));
+	room_boxes.push_back(tableLeg1);
+	room_colors.push_back(generate_a_valid_color(2));
+
+	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.3), Crd(tableTopCorner1), Crd(1.3)));
+	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.5), Crd(tableTopCorner1 + 0.2), Crd(0)));
+	room_boxes.push_back(tableLeg2);
+	room_colors.push_back(generate_a_valid_color(2));
+
+	tableLeg3.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1 + 1.3), Crd(1.3)));
+	tableLeg3.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + 1.5), Crd(0)));
+	room_boxes.push_back(tableLeg3);
+	room_colors.push_back(generate_a_valid_color(2));
+
+	tableLeg4.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.3)));
+	tableLeg4.add_point(Pnt(Crd(tableTopCorner2 - 0.2), Crd(tableTopCorner2 - .2), Crd(0)));
+	room_boxes.push_back(tableLeg4);
+	room_colors.push_back(generate_a_valid_color(2));
+
+}
+
+// small helper function to get a valid color. Not working as expected atm
+// 0 = black
+// 1 = red
+// 2 = orange
+// 3 = yellow
+// 4 = green
+// 5 = blue-green
+// 6 = blue
+// 7 = violett
+
+point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
+{
+	int i=0, j= 0;
+	int k = 0.5;
+	switch (color) 
+	{
+	case 1:
+		i = 1;
+		break;
+	case 2:
+		i = 1;
+		j = 0.7;
+		k = 0.5;
+		break;
+	case 3:
+		i = j = k = 0.5;
+		break;
+	case 4:
+		break;
+	case 5:
+		break;
+	case 6:
+		break;
+	case 7:
+		break;
+	default:
+		break;
+	}
+	return Clr( // to support float and uint8 color components, use to float_to_color_component function to convert from a double value
+		float_to_color_component(double(i)),float_to_color_component(double(j)),float_to_color_component(k));
+}
+
 vr_point_cloud_aligner::vr_point_cloud_aligner()
 {
 	set_name("VR Point Cloud Aligner");
 
 	sample_member_rows = 5;
 	sample_member_cols = 5;
-
-	generate_sample_boxes();
+	generate_room_boxes();
+	//generate_sample_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
 	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
@@ -86,18 +181,18 @@ void vr_point_cloud_aligner::init_frame(cgv::render::context& ctx)
 void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 {
 	point_cloud_interactable::draw(ctx);
-
+	
 	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
 	b_renderer.set_render_style(box_render_style);
 
 	// this is actually already set to false in gl_point_cloud_drawable but repeated here to make sure that you notice that when specifying boxes with min and max points, position_is_center must be false in renderer
 	b_renderer.set_position_is_center(false);
-	b_renderer.set_position_array(ctx, &sample_boxes[0].get_min_pnt(), sample_boxes.size(), sizeof(Box));
+	b_renderer.set_position_array(ctx, &room_boxes[0].get_min_pnt(), room_boxes.size(), sizeof(Box));
 	// max points are passed to extent array in case of position_is_center is false
-	b_renderer.set_extent_array(ctx, &sample_boxes[0].get_max_pnt(), sample_boxes.size(), sizeof(Box));
-	b_renderer.set_color_array(ctx, &sample_box_colors[0], sample_box_colors.size());
+	b_renderer.set_extent_array(ctx, &room_boxes[0].get_max_pnt(), room_boxes.size(), sizeof(Box));
+	b_renderer.set_color_array(ctx, &room_colors[0], room_colors.size());
 	b_renderer.validate_and_enable(ctx);
-	glDrawArrays(GL_POINTS, 0, sample_boxes.size());
+	glDrawArrays(GL_POINTS, 0, room_boxes.size());
 	b_renderer.disable(ctx);
 }
 
