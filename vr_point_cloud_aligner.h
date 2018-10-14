@@ -75,6 +75,8 @@ public:
 	void init_frame(cgv::render::context& ctx);
 	/// main rendering method
 	void draw(cgv::render::context& ctx);
+	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
+	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
 	//@}
 
 	/**@name user interface */

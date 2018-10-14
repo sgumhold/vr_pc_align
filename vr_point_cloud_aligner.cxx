@@ -31,6 +31,7 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room_colors.clear();
 	Box room;
 	float x_room_min= 0, y_room_min= 0, z_room_min= -.2;
+	float lineCount = 20; 
 	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
 	room.add_point(Pnt(Crd(5), Crd(5), Crd(0)));
 	room_boxes.push_back(room);
@@ -76,6 +77,22 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room_boxes.push_back(tableLeg4);
 	room_colors.push_back(generate_a_valid_color(2));
 
+	//Wäscheleine an der Wand  hälfte 1
+	for (size_t i = 1; i < lineCount; ++i) {
+			Box B;
+			B.add_point(Pnt(Crd(x_room_min), Crd((2.5/lineCount * (i - 1))+2.5), Crd((i / lineCount) +4)));
+			B.add_point(Pnt(Crd(x_room_min + 0.2),Crd((2.5/lineCount) * i + 2.5), Crd((i / lineCount) + 4.1)));
+			room_boxes.push_back(B);
+			room_colors.push_back(generate_a_valid_color(1));
+	}	
+	//Wäscheleine an der Wand  hälfte 2
+	for (size_t i = 1; i < lineCount; ++i) {
+		Box B;
+		B.add_point(Pnt(Crd(x_room_min), Crd((2.5 / lineCount * (i - 1))), Crd(5 - (i / lineCount))));
+		B.add_point(Pnt(Crd(x_room_min + 0.2), Crd((2.5 / lineCount) * i), Crd(5.1 - (i / lineCount))));
+		room_boxes.push_back(B);
+		room_colors.push_back(generate_a_valid_color(1));
+	}
 }
 
 // small helper function to get a valid color. Not working as expected atm
@@ -197,7 +214,17 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 }
 
 
+point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box)
+{
+	//To Implement
+	return Crd(0);
+}
 
+point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box, const Dir& box_translationm, const Qat& box_rotation)
+{
+	//To Implement
+	return Crd(0);
+}
 
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 {
