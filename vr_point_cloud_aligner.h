@@ -2,7 +2,7 @@
 
 #include <libs/point_cloud/point_cloud_interactable.h>
 #include <libs/cgv_gl/box_renderer.h>
-
+#include "interval.h"
 #include "lib_begin.h"
 
 
@@ -78,6 +78,7 @@ public:
 	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
 	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
 	//@}
+	interval calculate_intersectionintervall(double rayStart,double maxBoxCoord1, double maxBoxCoord2, double raydir);
 
 	/**@name user interface */
 	//@{
