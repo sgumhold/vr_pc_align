@@ -2,6 +2,8 @@
 
 #include <libs/point_cloud/point_cloud_interactable.h>
 #include <libs/cgv_gl/box_renderer.h>
+#include <cgv/render/view.h>
+
 #include "interval.h"
 #include "lib_begin.h"
 
@@ -22,6 +24,27 @@ private:
 	std::vector<Clr> room_colors;
 	cgv::render::surface_render_style box_render_style;
 	void generate_sample_boxes();
+
+	/// homogeneous matrix used to unproject mouse locations
+	cgv::render::context::mat_type DPV;
+	/// whether a picked point is available
+	bool have_picked_point;
+	/// position of picked point
+	Pnt picked_point;
+	/// extent of box rendered around picked point
+	float picked_box_extent;
+	/// color of picked box
+	Clr picked_box_color;
+	/// update the picked point from the given mouse position
+	void update_picked_point(cgv::render::context& ctx, int x, int y);
+	/// store view pointer
+	cgv::render::view* view_ptr;
+	/// ensure that view pointer has been extracted
+	bool ensure_view_pointer();
+	/// store last view point to draw eye ray
+	Pnt last_view_point, last_target_point;
+	/// whether a view ray has been defined
+	bool have_view_ray;
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
