@@ -35,7 +35,7 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
 	room.add_point(Pnt(Crd(5), Crd(5), Crd(0)));
 	room_boxes.push_back(room);
-	room_colors.push_back(generate_a_valid_color(0));
+	room_colors.push_back(generate_a_valid_color(3));
 
 	Box wall1;
 	wall1.add_point(Pnt(Crd(x_room_min - 0.2), Crd(y_room_min), Crd(z_room_min)));
@@ -77,22 +77,11 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room_boxes.push_back(tableLeg4);
 	room_colors.push_back(generate_a_valid_color(2));
 
-	//Wäscheleine an der Wand  hälfte 1
-	for (size_t i = 1; i < lineCount; ++i) {
-			Box B;
-			B.add_point(Pnt(Crd(x_room_min), Crd((2.5/lineCount * (i - 1))+2.5), Crd((i / lineCount) +4)));
-			B.add_point(Pnt(Crd(x_room_min + 0.2),Crd((2.5/lineCount) * i + 2.5), Crd((i / lineCount) + 4.1)));
-			room_boxes.push_back(B);
-			room_colors.push_back(generate_a_valid_color(1));
-	}	
-	//Wäscheleine an der Wand  hälfte 2
-	for (size_t i = 1; i < lineCount; ++i) {
-		Box B;
-		B.add_point(Pnt(Crd(x_room_min), Crd((2.5 / lineCount * (i - 1))), Crd(5 - (i / lineCount))));
-		B.add_point(Pnt(Crd(x_room_min + 0.2), Crd((2.5 / lineCount) * i), Crd(5.1 - (i / lineCount))));
-		room_boxes.push_back(B);
-		room_colors.push_back(generate_a_valid_color(1));
-	}
+	Box line;
+	line.add_point(Pnt(Crd(x_room_min), Crd(0), Crd(4)));
+	line.add_point(Pnt(Crd(x_room_min + .2), Crd(5), Crd(4.1)));
+	room_boxes.push_back(line);
+	room_colors.push_back(generate_a_valid_color(1));
 }
 
 // small helper function to get a valid color. Not working as expected atm
@@ -105,46 +94,37 @@ void vr_point_cloud_aligner::generate_room_boxes()
 // 6 = blue
 // 7 = violett
 
+void vr_point_cloud_aligner::position_scans() 
+{
+	int i = 0;
+}
+
 point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 {
-	int i=0, j= 0;
-	int k = 0.5;
-	switch (color) 
+	double color_values[] =
 	{
-	case 1:
-		i = 1;
-		break;
-	case 2:
-		i = 1;
-		j = 0.7;
-		k = 0.5;
-		break;
-	case 3:
-		i = j = k = 0.5;
-		break;
-	case 4:
-		break;
-	case 5:
-		break;
-	case 6:
-		break;
-	case 7:
-		break;
-	default:
-		break;
-	}
-	return Clr( // to support float and uint8 color components, use to float_to_color_component function to convert from a double value
-		float_to_color_component(double(i)),float_to_color_component(double(j)),float_to_color_component(k));
+		1.0, 0.0, 0.5, // my red
+		1.0, 0.7, 0.5, // my yellow
+		0.5, 0.5, 0.5, // my grey
+		0.2, 0.2, 0.2 // dark grey
+	};
+	int idx = color - 1;
+	if (idx < 0)
+		idx = 0;
+	if (idx > 3)
+		idx = 3;
+	return Clr( 
+		float_to_color_component(color_values[3*idx]), 
+		float_to_color_component(color_values[3*idx+1]), 
+		float_to_color_component(color_values[3*idx+2])
+	);
 }
 
 vr_point_cloud_aligner::vr_point_cloud_aligner()
 {
 	set_name("VR Point Cloud Aligner");
 
-	sample_member_rows = 5;
-	sample_member_cols = 5;
 	generate_room_boxes();
-	//generate_sample_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
 	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
@@ -184,7 +164,6 @@ bool vr_point_cloud_aligner::init(cgv::render::context& ctx)
 	bool success = point_cloud_interactable::init(ctx);
 
 	// do your one time init (e.g. shader loading, texture creation, ...) here and update the success member
-
 
 	return success;
 

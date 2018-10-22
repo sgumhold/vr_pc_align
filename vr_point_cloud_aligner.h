@@ -25,6 +25,8 @@ private:
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
+	//aligns the scans along the line
+	void position_scans();
 	//Helper function
 	Clr generate_a_valid_color(int color);
 
@@ -40,17 +42,17 @@ protected:
 	/// read access to component index of point 
 	unsigned pnt_comp_idx(Idx i) const { return pc.component_index(i); }
 	/// read access to component rotation
-	const Qat& comp_rot(Idx i) const { return pc.component_rotation(i); }
+	const Qat& comp_rot(Idx ci) const { return pc.component_rotation(ci); }
 	/// write access to component rotation
-	Qat& comp_rot(Idx i) { return pc.component_rotation(i); }
+	Qat& comp_rot(Idx ci) { return pc.component_rotation(ci); }
 	/// read access to component translation
-	const Dir& comp_trans(Idx i) const { return pc.component_translation(i); }
+	const Dir& comp_trans(Idx ci) const { return pc.component_translation(ci); }
 	/// write access to component tranlation
-	Dir& comp_trans(Idx i) { return pc.component_translation(i); }
+	Dir& comp_trans(Idx ci) { return pc.component_translation(ci); }
 	/// read access to component color
-	const RGBA& comp_color(Idx i) const { return pc.component_color(i); }
+	const RGBA& comp_color(Idx ci) const { return pc.component_color(ci); }
 	/// write access to component color
-	RGBA& comp_color(Idx i) { return pc.component_color(i); }
+	RGBA& comp_color(Idx ci) { return pc.component_color(ci); }
 	//@}	
 
 public:
