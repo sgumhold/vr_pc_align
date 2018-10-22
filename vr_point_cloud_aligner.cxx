@@ -120,10 +120,36 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 	);
 }
 
+#include <cgv/base/find_action.h>
+
+bool vr_point_cloud_aligner::ensure_view_pointer()
+{
+	cgv::base::base_ptr bp(dynamic_cast<cgv::base::base*>(this));
+	if (bp) {
+		std::vector<cgv::render::view*> views;
+		cgv::base::find_interface<cgv::render::view>(bp, views);
+		if (!views.empty()) {
+			view_ptr = views[0];
+			return true;
+		}
+	}
+	return false;
+}
+
 vr_point_cloud_aligner::vr_point_cloud_aligner()
 {
 	set_name("VR Point Cloud Aligner");
 
+	picked_box_extent = 0.1f;
+	picked_box_color = Clr(float_to_color_component(1.0f), 0, 0);
+	view_ptr = 0;
+	have_picked_point = false;
+	picked_point = Pnt(0, 0, 0);
+	last_view_point = Pnt(0, 0, 0);
+	have_view_ray = false;
+
+	sample_member_rows = 5;
+	sample_member_cols = 5;
 	generate_room_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
@@ -176,11 +202,34 @@ void vr_point_cloud_aligner::init_frame(cgv::render::context& ctx)
 }
 void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 {
+	// store current transformation matrix from world to device coordinates
+	DPV = ctx.get_DPV();
+
 	point_cloud_interactable::draw(ctx);
 	
 	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
 	b_renderer.set_render_style(box_render_style);
 
+	// draw box around picked point
+	if (have_picked_point) {
+		b_renderer.set_position_is_center(true);
+		b_renderer.set_position_array(ctx, &picked_point, 1);
+		Pnt extent(picked_box_extent, picked_box_extent, picked_box_extent);
+		b_renderer.set_extent_array(ctx, &extent, 1);
+		b_renderer.set_color_array(ctx, &picked_box_color, 1);
+		b_renderer.validate_and_enable(ctx);
+		glDrawArrays(GL_POINTS, 0, 1);
+		b_renderer.disable(ctx);
+	}
+	if (have_view_ray) {
+		glLineWidth(5);
+		glColor3f(1, 1, 0);
+		glBegin(GL_LINES);
+		glVertex3fv(&last_view_point[0]);
+		glVertex3fv(&last_target_point[0]);
+		glEnd();
+		glLineWidth(1);
+	}
 	// this is actually already set to false in gl_point_cloud_drawable but repeated here to make sure that you notice that when specifying boxes with min and max points, position_is_center must be false in renderer
 	b_renderer.set_position_is_center(false);
 	b_renderer.set_position_array(ctx, &room_boxes[0].get_min_pnt(), room_boxes.size(), sizeof(Box));
@@ -253,6 +302,25 @@ interval vr_point_cloud_aligner::calculate_intersectionintervall(double rayStart
 	return interval(t0, t1);
 }
 
+void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int x, int y)
+{
+	// check if a matrix for unprojection is available
+	if (DPV.size() == 0)
+		return;
+	double z = ctx.get_z_D(x, y);
+	// check for background
+	if (z > 0.99999999) {
+		if (have_picked_point)
+			post_redraw();
+		have_picked_point = false;
+	}
+	else {
+		have_picked_point = true;
+		picked_point = Pnt(&ctx.get_point_W(x, y, DPV)[0]);
+		post_redraw();
+	}
+}
+
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 {
 	if (e.get_kind() == cgv::gui::EID_KEY) {
@@ -295,9 +363,33 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 		}
 	}
 	else if (e.get_kind() == cgv::gui::EID_MOUSE) {
+		// convert event to mouse event
 		cgv::gui::mouse_event& me = static_cast<cgv::gui::mouse_event&>(e);
-
-		// handle mouse events and return true in case event was handles
+		// check if context is available
+		cgv::render::context* ctx_ptr = get_context();
+		if (me.get_modifiers() == cgv::gui::EM_CTRL && ctx_ptr && ctx_ptr->make_current()) {
+			update_picked_point(*ctx_ptr, me.get_x(), me.get_y());
+			// handle mouse move action
+			switch (me.get_action()) {
+			case cgv::gui::MA_MOVE:
+				return true;
+			case cgv::gui::MA_PRESS:
+				if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON)
+					return true;
+				break;
+			case cgv::gui::MA_RELEASE:
+				if (me.get_button() == cgv::gui::MB_RIGHT_BUTTON) {
+					ensure_view_pointer();
+					if (view_ptr) {
+						last_view_point = view_ptr->get_eye() - 0.5*view_ptr->get_view_up_dir();
+						last_target_point = picked_point;
+						have_view_ray = have_picked_point;
+					}
+					return true;
+				}
+				break;
+			}
+		}
 	}
 
 	// pass on remaining events to base class
@@ -333,6 +425,14 @@ void vr_point_cloud_aligner::create_gui()
 			align("\b"); // decrease identation
 			end_tree_node(box_render_style);
 		}
+		align("\b"); // decrease identation
+		end_tree_node(sample_boxes);
+	}
+	if (begin_tree_node("picking", have_picked_point, true, "level=3")) {
+		align("\a"); // increase identation
+		add_gui("position", picked_point, "options='active=false'");
+		add_member_control(this, "box extent", picked_box_extent, "value_slider", "min=0.0001;max=10;ticks=true;log=true");
+		add_member_control(this, "box color", picked_box_color);
 		align("\b"); // decrease identation
 		end_tree_node(sample_boxes);
 	}
