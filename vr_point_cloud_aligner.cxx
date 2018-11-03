@@ -263,20 +263,20 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 
 point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box, const Dir& box_translation, const Qat& box_rotation)
 {
-	//Implementation plan: apply translation and rotation to ray and calculate the solution with new ray and new box. Return the number
-	Box newBox;
-	//box_rotation.inverse_rotate
-	newBox.add_point(box_rotation.apply(box.get_min_pnt() + box_translation));
-	newBox.add_point(box_rotation.apply(box.get_max_pnt() + box_translation));
-	Pnt newRayStart = box_rotation.apply(ray_start + box_translation);
-	Dir newRayDirection = box_rotation.apply(ray_dir + box_translation);
-	return box_ray_intersection(newRayStart,newRayDirection,newBox);
+	//Implementation plan: apply inverse transformations to rays to transform them to the local coordinate system of the box. Calculate intersection there, then transfrom back to global
+	Pnt local_ray_start = transform_to_local(ray_start,box_translation,box_rotation);
+	Dir local_ray_direction = transform_to_local(ray_dir, box_translation, box_rotation);
+	Crd local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
+	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
+	Pnt global_intersection_point = box_rotation.apply( local_intersection_point + box_translation);
+	Crd global_result = ((global_intersection_point - ray_start).x() / ray_dir.x());
+	return global_result;
 }
 
-point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, Idx ci) 
+point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Dir& local_translation, const Qat& local_rotation) 
 {
-	Pnt result = Pnt((in - pc.component_translation(ci)));
-	pc.component_rotation(ci).inverse_rotate(result);
+	Pnt result = Pnt((in - local_translation));
+	local_rotation.inverse_rotate(result);
 	return result;
 }
 

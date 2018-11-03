@@ -102,8 +102,9 @@ public:
 	void draw(cgv::render::context& ctx);
 	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
 	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
+
+	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Dir & local_translation, const Qat & local_rotation);
 	
-	point_cloud_types::Pnt transform_to_local(const Pnt & in, Idx ci);
 	//@}
 	interval calculate_intersectionintervall(double rayStart,double maxBoxCoord1, double maxBoxCoord2, double raydir);
 
