@@ -265,11 +265,19 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 {
 	//Implementation plan: apply translation and rotation to ray and calculate the solution with new ray and new box. Return the number
 	Box newBox;
+	//box_rotation.inverse_rotate
 	newBox.add_point(box_rotation.apply(box.get_min_pnt() + box_translation));
 	newBox.add_point(box_rotation.apply(box.get_max_pnt() + box_translation));
 	Pnt newRayStart = box_rotation.apply(ray_start + box_translation);
 	Dir newRayDirection = box_rotation.apply(ray_dir + box_translation);
 	return box_ray_intersection(newRayStart,newRayDirection,newBox);
+}
+
+point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, Idx ci) 
+{
+	Pnt result = Pnt((in - pc.component_translation(ci)));
+	pc.component_rotation(ci).inverse_rotate(result);
+	return result;
 }
 
 interval vr_point_cloud_aligner::calculate_intersectionintervall(double rayStart, double maxBoxCoord1,double maxBoxCoord2,double raydir)
