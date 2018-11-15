@@ -367,6 +367,9 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					break;
 				}
 				break;
+			case 'Y':
+				reset_componets_transformations();
+				return true;
 			}
 		}
 	}
@@ -406,9 +409,41 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEvent pcc_event)
 {
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
-
+	/*if (pcc_event == PCC_NEW_POINT_CLOUD) {
+		int i = pc.get_nr_components();
+		
+		if (pc.component_translation(i) == NULL)// find a way to check if this pointcloud was already aligned somehow by the user. If not use default translation to line
+		{
+			// a new Pointcloud has been added and should be moved to the line. Therefore all pointclouds should be put there, but only if they are not already moved
+			int nr = pc.get_nr_components();
+			if (nr > 0)
+			{
+				for (int i = 0; i < nr; i++)
+				{
+					float x = 5.1 / nr;
+					pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+				}
+			}
+		}
+	}*/
+	reset_componets_transformations();
 	// do more handling of point clout change events here
 }
+
+void vr_point_cloud_aligner::reset_componets_transformations() {
+	int nr = pc.get_nr_components();
+	if (nr > 0)
+	{
+		for (int i = 0; i < nr; i++)
+		{
+			float x = 5.1 / nr;
+			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+			pc.component_rotation(i).set(0,0,0,0);
+		}
+	}
+	post_redraw();
+}
+
 void vr_point_cloud_aligner::on_set(void* member_ptr)
 {
 	if (member_ptr == &sample_member_rows || member_ptr == &sample_member_cols) {

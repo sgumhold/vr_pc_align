@@ -114,6 +114,8 @@ public:
 	bool handle(cgv::gui::event& e);
 	/// used to update all dependent variables in case of changes to the point cloud
 	void on_point_cloud_change_callback(PointCloudChangeEvent pcc_event);
+	/// used to reset all loaded componets transformations and put them back on the line
+	void reset_componets_transformations();
 	/// used to update all dependent variables in case of changes to member variables
 	void on_set(void* member_ptr);
 	/// user interface creation
