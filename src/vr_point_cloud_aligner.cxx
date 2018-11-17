@@ -211,6 +211,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	b_renderer.set_render_style(box_render_style);
 
 	// draw box around picked point
+	/*
 	if (have_picked_point) {
 		b_renderer.set_position_is_center(true);
 		b_renderer.set_position_array(ctx, &picked_point, 1);
@@ -220,7 +221,18 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 		b_renderer.validate_and_enable(ctx);
 		glDrawArrays(GL_POINTS, 0, 1);
 		b_renderer.disable(ctx);
+	}*/
+
+	//check for box intersections
+	if(have_picked_point)
+	for (int i = 0; i < pc.get_nr_components(); i++)
+	{
+		//Problem: There is no way to access the boxes of the components!
+		if (Crd(0) != box_ray_intersection(last_view_point, picked_point, pc.box())) //pc.component_translation(i), pc.component_rotation(i)));
+		printf("Picked a scan");
+		//Change color of box
 	}
+
 	if (have_view_ray) {
 		glLineWidth(5);
 		glColor3f(1, 1, 0);
@@ -267,6 +279,9 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	Pnt local_ray_start = transform_to_local(ray_start,box_translation,box_rotation);
 	Dir local_ray_direction = transform_to_local(ray_dir, box_translation, box_rotation);
 	Crd local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
+	//There is no intersection
+	if(local_result == Crd(0))
+		return 0;
 	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
 	Pnt global_intersection_point = box_rotation.apply( local_intersection_point + box_translation);
 	Crd global_result = ((global_intersection_point - ray_start).x() / ray_dir.x());
