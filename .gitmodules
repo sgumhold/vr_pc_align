@@ -2,3 +2,8 @@
 	
 	path = sparseicp
 	url = https://github.com/OpenGP/sparseicp.git
+
+[submodule "eigen"]
+
+	path = eigen
+	url = https://github.com/eigenteam/eigen-git-mirror.git
