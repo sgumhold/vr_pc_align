@@ -2,6 +2,7 @@
 projectName="vr_pc_align";
 projectType="application_plugin";
 projectGUID="6E258553-F9D5-413C-AD83-373D5617AA27";
+addIncDirs=[INPUT_DIR."/../sparseicp/include"];
 addProjectDirs=[CGV_DIR."/plugins", CGV_DIR."/libs", CGV_DIR."/3rd"];
 addProjectDeps=[
 	"cgv_utils","cgv_type","cgv_data","cgv_base", "cgv_signal", "cgv_reflect", "cgv_gl", "cgv_media", "cgv_os", "cgv_gui", "cgv_render",
