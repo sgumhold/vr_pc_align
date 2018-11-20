@@ -1,4 +1,4 @@
 [submodule "sparseicp"]
 	
-	path = /sparseicp
+	path = sparseicp
 	url = https://github.com/OpenGP/sparseicp.git
