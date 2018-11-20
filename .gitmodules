@@ -1,0 +1,2 @@
+[submodule "sparseicp"]
+	url = https://github.com/OpenGP/sparseicp.git
