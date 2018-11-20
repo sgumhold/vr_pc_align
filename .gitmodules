@@ -5,5 +5,5 @@
 
 [submodule "eigen"]
 
-	path = eigen
+	path = eigen-git-mirror
 	url = https://github.com/eigenteam/eigen-git-mirror.git
