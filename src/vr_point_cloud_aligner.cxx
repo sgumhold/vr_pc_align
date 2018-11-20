@@ -2,7 +2,16 @@
 #include <cgv/base/register.h>
 #include <cgv/gui/key_event.h>
 #include <cgv/gui/mouse_event.h>
+
+#include <cgv/gui/file_dialog.h>
 #include <libs/cgv_gl/gl/gl.h>
+
+
+#define FILE_OPEN_TITLE "Open Transformation Project"
+#define FILE_OPEN_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
+
+#define FILE_SAVE_TITLE "Tramsformation Projects"
+#define FILE_SAVE_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
 
 void vr_point_cloud_aligner::generate_sample_boxes()
 {
@@ -330,6 +339,12 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 	// check if a matrix for unprojection is available
 	if (DPV.size() == 0)
 		return;
+	GLdouble objx, objy, objz,objx2,objy2,objz2;
+	//Use graphics libary to unproject
+	//gluUnProject(x, y, 0, , , , &objx, &objy, &objz);
+	//gluUnProject(x, y, 1, , , , &objx2, &objy2, &objz2);
+
+
 	double z = ctx.get_z_D(x, y);
 	// check for background
 	if (z > 0.99999999) {
@@ -452,8 +467,8 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 		for (int i = 0; i < nr; i++)
 		{
 			float x = 5.1 / nr;
-			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
-			pc.component_rotation(i).set(0,0,0,0);
+			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));				
+			pc.component_rotation(i).set(cgv::math::quaternion<float>::AxisEnum::X_AXIS,0);
 		}
 	}
 	post_redraw();
@@ -493,6 +508,18 @@ void vr_point_cloud_aligner::create_gui()
 		add_member_control(this, "box color", picked_box_color);
 		align("\b"); // decrease identation
 		end_tree_node(sample_boxes);
+	}
+
+	//GUI for saving Transformations from scans
+	if (begin_tree_node("Save transformations", true, true, "level=3")) {
+		align("\a");
+		add_gui("file_name", project_file, "file_name",
+			"w=130;"
+			"open=true;open_title='" FILE_OPEN_TITLE "';open_filter='" FILE_OPEN_FILTER "';"
+			"save=true;save_title='" FILE_SAVE_TITLE "';save_filter='" FILE_SAVE_FILTER "'"
+		);
+		align("\b");
+		end_tree_node(true);
 	}
 }
 

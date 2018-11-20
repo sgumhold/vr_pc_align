@@ -4,6 +4,7 @@
 #include <libs/cgv_gl/box_renderer.h>
 #include <cgv/render/view.h>
 
+#include <cgv/gui/file_dialog.h>
 #include "interval.h"
 #include "lib_begin.h"
 
@@ -45,6 +46,11 @@ private:
 	Pnt last_view_point, last_target_point;
 	/// whether a view ray has been defined
 	bool have_view_ray;
+
+	///Event when Transformations are stored to file
+	bool saved_transformations_event;
+	///ProjectFilepath
+	std::string project_file;
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
