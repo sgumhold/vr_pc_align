@@ -2,7 +2,7 @@
 #include <cgv/base/register.h>
 #include <cgv/gui/key_event.h>
 #include <cgv/gui/mouse_event.h>
-
+#include "../sparseicp/ICP.h"
 #include <cgv/gui/file_dialog.h>
 #include <libs/cgv_gl/gl/gl.h>
 
@@ -233,14 +233,16 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	}*/
 
 	//check for box intersections
-	if(have_picked_point)
-	for (int i = 0; i < pc.get_nr_components(); i++)
+	if(have_picked_point && pick_active)
+	//for (int i = 0; i < pc.get_nr_components(); i++)
 	{
 		//Problem: There is no way to access the boxes of the components!
-		if (Crd(0) != box_ray_intersection(last_view_point, picked_point, pc.box())) //pc.component_translation(i), pc.component_rotation(i)));
+		
+		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point - last_view_point, pc.box())) //pc.component_translation(i), pc.component_rotation(i)));
 		printf("Picked a scan");
 		//Change color of box
 	}
+	pick_active = false;
 
 	if (have_view_ray) {
 		glLineWidth(5);
@@ -263,34 +265,35 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 }
 
 
-point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box)
+point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box)
 {
 	//Boxes are axis aligned defined by 2 coordinates. This means one can use the techniques of ECG raytracing slides s22
 	//Calculate for each axis its intersection intervall. Then intersect all intervalls to get the target intervall and its parameters
 	interval xintersection = calculate_intersectionintervall(ray_start.x(), box.get_min_pnt().x(), box.get_max_pnt().x(), ray_dir.x());
 	interval yintersection = calculate_intersectionintervall(ray_start.y(), box.get_min_pnt().y(), box.get_max_pnt().y(), ray_dir.y());
 	interval zintersection = calculate_intersectionintervall(ray_start.z(), box.get_min_pnt().z(), box.get_max_pnt().z(), ray_dir.z());
-	if (xintersection.isNullInterval() || yintersection.isNullInterval() || zintersection.isNullInterval())
+	if (xintersection.isInvalid() || yintersection.isInvalid() || zintersection.isInvalid())
 	{
-		return Crd(0);
+		return Pnt(-1000,-1000,-1000);
 	}
 	interval solution = xintersection.intersectIntervals(yintersection).intersectIntervals(zintersection);
 	if (solution.isInvalid() || solution.isNullInterval()) {
-		return Crd(0);
+		return Pnt(-1000, -1000, -1000);
 	}
 	//I am not certain about this solution, somehow there should be a number € Tq that is the solution. Anyway the minimum should not be that far away from the solution
-	return Crd(solution.get_min());
+	Pnt result = ray_start + ray_dir * solution.get_min();
+	return result;
 }
 
-point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box, const Dir& box_translation, const Qat& box_rotation)
+point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box, const Dir& box_translation, const Qat& box_rotation)
 {
 	//Implementation plan: apply inverse transformations to rays to transform them to the local coordinate system of the box. Calculate intersection there, then transfrom back to global
 	Pnt local_ray_start = transform_to_local(ray_start,box_translation,box_rotation);
 	Dir local_ray_direction = transform_to_local(ray_dir, box_translation, box_rotation);
-	Crd local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
+	Pnt local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
 	//There is no intersection
-	if(local_result == Crd(0))
-		return 0;
+	if(local_result == Pnt(-1000, -1000, -1000))
+		return Pnt(-1000, -1000, -1000);
 	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
 	Pnt global_intersection_point = box_rotation.apply( local_intersection_point + box_translation);
 	Crd global_result = ((global_intersection_point - ray_start).x() / ray_dir.x());
@@ -307,7 +310,7 @@ point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in,
 interval vr_point_cloud_aligner::calculate_intersectionintervall(double rayStart, double maxBoxCoord1,double maxBoxCoord2,double raydir)
 {
 	//X0 = px + t* x vx
-	//First of we need the parameter vx especially its sign and if its bigger 0
+	//First we need the parameter vx especially its sign and if its bigger 0
 	// vx = abl(x)/abl(t) = vx
 	double px = rayStart;
 	double x0 = maxBoxCoord1;
@@ -321,15 +324,15 @@ interval vr_point_cloud_aligner::calculate_intersectionintervall(double rayStart
 		interval a(0,0);
 		return a;
 	}
-	else if (vx < 0)
+	else if (vx > 0)
 	{
 		t0 = (x0 - px) / vx;
 		t1 = (x1 - px) / vx;
 	}
 	else
 	{
-		t1 = (x0 - px) / vx;
 		t0 = (x1 - px) / vx;
+		t1 = (x0 - px) / vx;
 	}
 	return interval(t0, t1);
 }
@@ -425,6 +428,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						last_view_point = view_ptr->get_eye() - 0.5*view_ptr->get_view_up_dir();
 						last_target_point = picked_point;
 						have_view_ray = have_picked_point;
+						pick_active=true;
 					}
 					return true;
 				}

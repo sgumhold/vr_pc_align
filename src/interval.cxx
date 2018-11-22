@@ -7,10 +7,12 @@ interval::interval(double a, double b)
 	if (a < b) {
 		min = a;
 		max = b;
+		invalid = false;
 	}
 	else {
-		min = b;
-		max = a;
+		a = 0;
+		b = 0;
+		this->setInvalid();
 	}
 }
 
@@ -40,7 +42,7 @@ double interval::get_max()
 bool interval::isNullInterval()
 {
 	if(min==0 && max == 0)
-	return true;
+		return true;
 	return false;
 }
 

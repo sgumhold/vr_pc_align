@@ -32,6 +32,8 @@ private:
 	bool have_picked_point;
 	/// position of picked point
 	Pnt picked_point;
+	/// point is picked right now
+	bool pick_active;
 	/// extent of box rendered around picked point
 	float picked_box_extent;
 	/// color of picked box
@@ -106,8 +108,8 @@ public:
 	void init_frame(cgv::render::context& ctx);
 	/// main rendering method
 	void draw(cgv::render::context& ctx);
-	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
-	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
+	Pnt box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
+	Pnt box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
 
 	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Dir & local_translation, const Qat & local_rotation);
 	
