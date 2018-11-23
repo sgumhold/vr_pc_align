@@ -236,13 +236,15 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 
 	//check for box intersections
 	if(have_picked_point && pick_active)
-	//for (int i = 0; i < pc.get_nr_components(); i++)
+	for (int i = 0; i < pc.get_nr_components(); i++)
 	{
 		//Problem: There is no way to access the boxes of the components!
 		
-		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point - last_view_point, pc.box())) //pc.component_translation(i), pc.component_rotation(i)));
-		printf("Picked a scan");
-		//Change color of box
+		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point - last_view_point, pc.component_boxes.at(i), pc.component_translation(i), pc.component_rotation(i))) {
+			printf("Picked a scan");
+			//Change color of box
+			pc.component_color(i) = pc.component_color(i) + 1;
+		}
 	}
 	pick_active = false;
 
@@ -312,9 +314,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		return;
 	}
 	std::string line;
-	pc.create_components();
-	pc.create_component_tranformations();
-	pc.create_component_colors();
+	bool first_read = true;
 	while (std::getline(inFile, line))
 	{
 		std::istringstream iss(line);
@@ -333,21 +333,46 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		if (fileName.empty()) {
 			continue;
 		}
-		point_cloud pc_to_append;
-		if (pc_to_append.read(fileName)) {
-			pc_to_append.create_components();
-			pc_to_append.create_component_tranformations();
-			pc_to_append.create_component_colors();
-			pc_to_append.component_translation(0).set(x, y, z);
-			pc_to_append.component_rotation(0).set(re, xi, yi, zi);
+		///This is necessary so that hte create componets functions does not create empty components
+		if (first_read) {
+			if (!pc.read(fileName)) {
+				continue;
+			}
+			transformation_lock = true;
+			pc.create_components();
+			pc.create_component_tranformations();
+			pc.create_component_colors();
+			pc.component_translation(0).set(x, y, z);
+			pc.component_rotation(0).set(re, xi, yi, zi);
 			cgv::media::color<float, cgv::media::ColorModel::RGB, cgv::media::AlphaModel::NO_ALPHA> a;
 			a.R() = (float)200;
-			a.G() = (float) 0;
+			a.G() = (float)0;
 			a.B() = (float)0;
-			pc_to_append.component_color(0) = a;
+			pc.component_color(0) = a;
 			user_modified.push_back(isUserModified);
 			file_paths.push_back(fileName);
-			pc.append(pc_to_append);
+			transformation_lock = false;
+			first_read = false;
+		}
+		else {
+			point_cloud pc_to_append;
+			if (pc_to_append.read(fileName)) {
+				transformation_lock = true;
+				pc_to_append.create_components();
+				pc_to_append.create_component_tranformations();
+				pc_to_append.create_component_colors();
+				pc_to_append.component_translation(0).set(x, y, z);
+				pc_to_append.component_rotation(0).set(re, xi, yi, zi);
+				cgv::media::color<float, cgv::media::ColorModel::RGB, cgv::media::AlphaModel::NO_ALPHA> a;
+				a.R() = (float)200;
+				a.G() = (float)0;
+				a.B() = (float)0;
+				pc_to_append.component_color(0) = a;
+				user_modified.push_back(isUserModified);
+				file_paths.push_back(fileName);
+				pc.append(pc_to_append);
+				transformation_lock = false;
+			}
 		}
 	}
 }
@@ -510,7 +535,7 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
 	if (pcc_event == PCC_NEW_POINT_CLOUD) {
 		int i = pc.get_nr_components();
-		
+		transformation_lock = true;
 		if (user_modified.at(i-1))	//Check if this is a new Point cloud
 		{
 			// a new Pointcloud has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
@@ -531,8 +556,8 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 				}
 			}
 		}
+		transformation_lock = false;
 	}
-	//reset_componets_transformations();
 	// do more handling of point clout change events here
 }
 
@@ -573,6 +598,15 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	if (member_ptr == &write_project_file) {
 		save_project_file(write_project_file);
 	}
+	if(!transformation_lock && pc.get_nr_components()>0)
+	for (int i = 0; i < pc.get_nr_components(); i++) {
+		if (member_ptr == &pc.component_rotation(i) || &pc.component_translation(i))
+		{
+			user_modified.at(i) = true;
+			break;
+		}	
+	}
+
 	// always call base class implementation to post_redraw and update_member in gui
 	point_cloud_interactable::on_set(member_ptr);
 }

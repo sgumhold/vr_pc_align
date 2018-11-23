@@ -119,6 +119,8 @@ public:
 	void load_project_file(std::string projectFile);
 	/// saves usermodified Transformations and flags to File
 	void save_project_file(std::string projectFile);
+	/// This flag shows if the reset function is working on the transformations at this given point of time
+	bool transformation_lock;
 
 	/// transforms a rotation and translation from global to local coordinates of a given Point
 	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Dir & local_translation, const Qat & local_rotation);
