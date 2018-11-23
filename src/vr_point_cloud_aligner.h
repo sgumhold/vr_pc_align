@@ -23,6 +23,8 @@ private:
 	std::vector<Box> room_boxes;
 	std::vector<Clr> sample_box_colors;
 	std::vector<Clr> room_colors;
+	std::vector<bool> user_modified;
+	std::vector<std::string> file_paths;
 	cgv::render::surface_render_style box_render_style;
 	void generate_sample_boxes();
 
@@ -53,6 +55,8 @@ private:
 	bool saved_transformations_event;
 	///ProjectFilepath
 	std::string project_file;
+	///ProjectFilepath write access
+	std::string write_project_file;
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
@@ -111,6 +115,12 @@ public:
 	Pnt box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
 	Pnt box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
 
+	/// loads given Transformations and flags from File
+	void load_project_file(std::string projectFile);
+	/// saves usermodified Transformations and flags to File
+	void save_project_file(std::string projectFile);
+
+	/// transforms a rotation and translation from global to local coordinates of a given Point
 	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Dir & local_translation, const Qat & local_rotation);
 	
 	//@}

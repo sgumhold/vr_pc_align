@@ -3,6 +3,8 @@
 #include <cgv/gui/key_event.h>
 #include <cgv/gui/mouse_event.h>
 #include "../sparseicp/ICP.h"
+#include <fstream>
+#include <cgv/utils/file.h>
 #include <cgv/gui/file_dialog.h>
 #include <libs/cgv_gl/gl/gl.h>
 
@@ -300,7 +302,70 @@ point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	return global_result;
 }
 
-point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Dir& local_translation, const Qat& local_rotation) 
+void vr_point_cloud_aligner::load_project_file(std::string projectFile)
+{
+	///using filestream to read
+	std::ifstream inFile;
+	inFile.open(projectFile);
+	if (!inFile) {
+		printf("Unable to open file");
+		return;
+	}
+	std::string line;
+	pc.create_components();
+	pc.create_component_tranformations();
+	pc.create_component_colors();
+	while (std::getline(inFile, line))
+	{
+		std::istringstream iss(line);
+		//pc.create_components();
+		//File Format looks like this:
+		//path of file			Translation	Quarternion(rotation)	UserFlag
+		//componentpath.ply		x y z		qx qy qz qw				isUserModified
+		std::string fileName;
+		float x, y, z;
+		double re, xi, yi, zi;
+		bool isUserModified;
+		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> isUserModified)) {
+			//If reading fails, continue next
+			continue;
+		}
+		if (fileName.empty()) {
+			continue;
+		}
+		point_cloud pc_to_append;
+		if (pc_to_append.read(fileName)) {
+			pc_to_append.create_components();
+			pc_to_append.create_component_tranformations();
+			pc_to_append.create_component_colors();
+			pc_to_append.component_translation(0).set(x, y, z);
+			pc_to_append.component_rotation(0).set(re, xi, yi, zi);
+			cgv::media::color<float, cgv::media::ColorModel::RGB, cgv::media::AlphaModel::NO_ALPHA> a;
+			a.R() = (float)200;
+			a.G() = (float) 0;
+			a.B() = (float)0;
+			pc_to_append.component_color(0) = a;
+			user_modified.push_back(isUserModified);
+			file_paths.push_back(fileName);
+			pc.append(pc_to_append);
+		}
+	}
+}
+
+void vr_point_cloud_aligner::save_project_file(std::string projectFile)
+{
+	std::ofstream outFile;
+	outFile.open(projectFile);
+	if (0 == pc.get_nr_components()) {
+		printf("Keine Komponenten zum speichern!");
+	}
+	for (int i = 0; i < pc.get_nr_components(); i++) {
+		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << '\n';
+	}
+	outFile.close();
+}
+
+point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Dir& local_translation, const Qat& local_rotation)
 {
 	Pnt result = Pnt((in - local_translation));
 	local_rotation.inverse_rotate(result);
@@ -443,24 +508,31 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEvent pcc_event)
 {
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
-	/*if (pcc_event == PCC_NEW_POINT_CLOUD) {
+	if (pcc_event == PCC_NEW_POINT_CLOUD) {
 		int i = pc.get_nr_components();
 		
-		if (pc.component_translation(i) == NULL)// find a way to check if this pointcloud was already aligned somehow by the user. If not use default translation to line
+		if (user_modified.at(i-1))	//Check if this is a new Point cloud
 		{
-			// a new Pointcloud has been added and should be moved to the line. Therefore all pointclouds should be put there, but only if they are not already moved
-			int nr = pc.get_nr_components();
+			// a new Pointcloud has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
+			int nr = 0;
+			for (int a = 0; a < user_modified.size(); a++) {
+				if (!user_modified.at(a)) {
+					nr++;
+				}
+			}
+
 			if (nr > 0)
 			{
-				for (int i = 0; i < nr; i++)
+				for (int i = 0; i < pc.get_nr_components(); i++)
 				{
 					float x = 5.1 / nr;
-					pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+					if(!user_modified.at(i))
+						pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
 				}
 			}
 		}
-	}*/
-	reset_componets_transformations();
+	}
+	//reset_componets_transformations();
 	// do more handling of point clout change events here
 }
 
@@ -483,6 +555,24 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	if (member_ptr == &sample_member_rows || member_ptr == &sample_member_cols) {
 		generate_sample_boxes();
 	}
+	if (member_ptr == &project_file) {
+		load_project_file(project_file);
+	}
+	if (member_ptr == &directory_name) {
+		//Problem: how to match filenames to components?
+		//Solution: use the exact same method to get the same order as like in point_cloud_interactable.cxx
+		void* handle = cgv::utils::file::find_first(directory_name + "/*.*");
+		while (handle) {
+			if (!cgv::utils::file::find_directory(handle))
+				file_paths.push_back(directory_name + "/" + cgv::utils::file::find_name(handle));
+			handle = cgv::utils::file::find_next(handle);
+			user_modified.push_back(false);
+		}
+		//Continue with internal method
+	}
+	if (member_ptr == &write_project_file) {
+		save_project_file(write_project_file);
+	}
 	// always call base class implementation to post_redraw and update_member in gui
 	point_cloud_interactable::on_set(member_ptr);
 }
@@ -490,7 +580,7 @@ void vr_point_cloud_aligner::create_gui()
 {
 	// start with gui for based class
 	point_cloud_interactable::create_gui();
-
+	/*
 	// add own gui
 	if (begin_tree_node("sample gui", sample_boxes, true, "level=3")) {
 		align("\a"); // increase identation
@@ -504,7 +594,7 @@ void vr_point_cloud_aligner::create_gui()
 		}
 		align("\b"); // decrease identation
 		end_tree_node(sample_boxes);
-	}
+	}*/
 	if (begin_tree_node("picking", have_picked_point, true, "level=3")) {
 		align("\a"); // increase identation
 		add_gui("position", picked_point, "options='active=false'");
@@ -520,6 +610,9 @@ void vr_point_cloud_aligner::create_gui()
 		add_gui("file_name", project_file, "file_name",
 			"w=130;"
 			"open=true;open_title='" FILE_OPEN_TITLE "';open_filter='" FILE_OPEN_FILTER "';"
+		);
+		add_gui("file_name", write_project_file, "file_name",
+			"w=130;"
 			"save=true;save_title='" FILE_SAVE_TITLE "';save_filter='" FILE_SAVE_FILTER "'"
 		);
 		align("\b");
