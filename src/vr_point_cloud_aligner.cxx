@@ -240,10 +240,10 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	{
 		//Problem: There is no way to access the boxes of the components!
 		
-		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point - last_view_point, pc.component_boxes.at(i), pc.component_translation(i), pc.component_rotation(i))) {
+		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i))) {
 			printf("Picked a scan");
 			//Change color of box
-			pc.component_color(i) = pc.component_color(i) + 1;
+			//pc.component_color(i) = pc.component_color(i) + 1;
 		}
 	}
 	pick_active = false;
@@ -289,17 +289,18 @@ point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	return result;
 }
 
-point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box, const Dir& box_translation, const Qat& box_rotation)
+point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_end, const Box& box, const Dir& box_translation, const Qat& box_rotation)
 {
 	//Implementation plan: apply inverse transformations to rays to transform them to the local coordinate system of the box. Calculate intersection there, then transfrom back to global
 	Pnt local_ray_start = transform_to_local(ray_start,box_translation,box_rotation);
-	Dir local_ray_direction = transform_to_local(ray_dir, box_translation, box_rotation);
+	Dir local_ray_direction = transform_to_local(ray_end, box_translation, box_rotation) - local_ray_start;
 	Pnt local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
 	//There is no intersection
 	if(local_result == Pnt(-1000, -1000, -1000))
 		return Pnt(-1000, -1000, -1000);
 	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
-	Pnt global_intersection_point = box_rotation.apply( local_intersection_point + box_translation);
+	Pnt global_intersection_point = box_rotation.apply( local_intersection_point) + box_translation;
+	Dir ray_dir = ray_end - ray_start;
 	Crd global_result = ((global_intersection_point - ray_start).x() / ray_dir.x());
 	return global_result;
 }
@@ -390,7 +391,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 	outFile.close();
 }
 
-point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Dir& local_translation, const Qat& local_rotation)
+point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Pnt& local_translation, const Qat& local_rotation)
 {
 	Pnt result = Pnt((in - local_translation));
 	local_rotation.inverse_rotate(result);
@@ -535,6 +536,9 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
 	if (pcc_event == PCC_NEW_POINT_CLOUD) {
 		int i = pc.get_nr_components();
+		if (i <= 0) {
+			return;
+		}
 		transformation_lock = true;
 		if (user_modified.at(i-1))	//Check if this is a new Point cloud
 		{
