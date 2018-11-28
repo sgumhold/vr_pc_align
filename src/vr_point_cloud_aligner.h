@@ -26,6 +26,8 @@ private:
 	std::vector<bool> user_modified;
 	std::vector<std::string> file_paths;
 	cgv::render::surface_render_style box_render_style;
+	int pickedComponent;
+	RGBA oldColor;
 	void generate_sample_boxes();
 
 	/// homogeneous matrix used to unproject mouse locations

@@ -165,6 +165,10 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
 	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
+
+	pickedComponent = -1;
+	oldColor = RGBA(1, 1, 1, 1);
+
 }
 
 
@@ -242,8 +246,14 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 		
 		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i))) {
 			printf("Picked a scan");
+			if (pickedComponent > 0)
+				pc.component_color(pickedComponent) = oldColor;
+
 			//Change color of box
-			//pc.component_color(i) = pc.component_color(i) + 1;
+			oldColor = pc.component_color(i);
+			pc.component_color(i) = RGBA(1, 0, 0, 1);
+			post_redraw();
+			break;
 		}
 	}
 	pick_active = false;
@@ -345,11 +355,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			pc.create_component_colors();
 			pc.component_translation(0).set(x, y, z);
 			pc.component_rotation(0).set(re, xi, yi, zi);
-			cgv::media::color<float, cgv::media::ColorModel::RGB, cgv::media::AlphaModel::NO_ALPHA> a;
-			a.R() = (float)200;
-			a.G() = (float)0;
-			a.B() = (float)0;
-			pc.component_color(0) = a;
+			pc.component_color(0) = RGBA(1,1,1,1);
 			user_modified.push_back(isUserModified);
 			file_paths.push_back(fileName);
 			transformation_lock = false;
@@ -364,15 +370,12 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				pc_to_append.create_component_colors();
 				pc_to_append.component_translation(0).set(x, y, z);
 				pc_to_append.component_rotation(0).set(re, xi, yi, zi);
-				cgv::media::color<float, cgv::media::ColorModel::RGB, cgv::media::AlphaModel::NO_ALPHA> a;
-				a.R() = (float)200;
-				a.G() = (float)0;
-				a.B() = (float)0;
-				pc_to_append.component_color(0) = a;
+				pc_to_append.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()) / float(10), 0.5f, 1.0f, 1.0f);
 				user_modified.push_back(isUserModified);
 				file_paths.push_back(fileName);
 				pc.append(pc_to_append);
 				transformation_lock = false;
+				printf("\n");
 			}
 		}
 	}
