@@ -252,6 +252,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 			//Change color of box
 			oldColor = pc.component_color(i);
 			pc.component_color(i) = RGBA(1, 0, 0, 1);
+			pickedComponent = i;
 			post_redraw();
 			break;
 		}
@@ -355,7 +356,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			pc.create_component_colors();
 			pc.component_translation(0).set(x, y, z);
 			pc.component_rotation(0).set(re, xi, yi, zi);
-			pc.component_color(0) = RGBA(1,1,1,1);
+			pc.component_color(0) = RGBA(1,0,0,1);
 			user_modified.push_back(isUserModified);
 			file_paths.push_back(fileName);
 			transformation_lock = false;
