@@ -30,6 +30,9 @@ private:
 	RGBA oldColor;
 	void generate_sample_boxes();
 
+	///The default facing where scans should look at
+	cgv::math::quaternion<float> defaultFacing;
+
 	/// homogeneous matrix used to unproject mouse locations
 	cgv::render::context::mat_type DPV;
 	/// whether a picked point is available

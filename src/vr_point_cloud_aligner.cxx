@@ -168,7 +168,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 
 	pickedComponent = -1;
 	oldColor = RGBA(1, 1, 1, 1);
-
+	defaultFacing = cgv::math::quaternion<float>(cgv::math::quaternion<float>::AxisEnum::X_AXIS, 0);
 }
 
 
@@ -559,8 +559,12 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 				for (int i = 0; i < pc.get_nr_components(); i++)
 				{
 					float x = 5.1 / nr;
-					if(!user_modified.at(i))
+					if (!user_modified.at(i)) 
+					{
 						pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+						pc.component_rotation(i).set(defaultFacing);
+					}
+					
 				}
 			}
 		}
@@ -577,7 +581,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 		{
 			float x = 5.1 / nr;
 			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));				
-			pc.component_rotation(i).set(cgv::math::quaternion<float>::AxisEnum::X_AXIS,0);
+			pc.component_rotation(i).set(defaultFacing);
 		}
 	}
 	post_redraw();
