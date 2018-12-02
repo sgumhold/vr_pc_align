@@ -18,6 +18,12 @@ protected:
 	/// examples of how to control a member variables (see contructor, self_reflect, stream_stats, stream_help, create_gui, handle)
 	size_t sample_member_rows;
 	size_t sample_member_cols;
+
+	///ProjectFilepath
+	std::string project_file;
+	///The default facing where scans should look at
+	cgv::math::quaternion<float> defaultFacing;
+
 private:
 	std::vector<Box> sample_boxes;
 	std::vector<Box> room_boxes;
@@ -30,8 +36,6 @@ private:
 	RGBA oldColor;
 	void generate_sample_boxes();
 
-	///The default facing where scans should look at
-	cgv::math::quaternion<float> defaultFacing;
 
 	/// homogeneous matrix used to unproject mouse locations
 	cgv::render::context::mat_type DPV;
@@ -58,8 +62,7 @@ private:
 
 	///Event when Transformations are stored to file
 	bool saved_transformations_event;
-	///ProjectFilepath
-	std::string project_file;
+
 	///ProjectFilepath write access
 	std::string write_project_file;
 

@@ -168,7 +168,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 
 	pickedComponent = -1;
 	oldColor = RGBA(1, 1, 1, 1);
-	defaultFacing = cgv::math::quaternion<float>(cgv::math::quaternion<float>::AxisEnum::X_AXIS, 0);
+	defaultFacing = cgv::math::quaternion<float>(0,0,0,0);
 }
 
 
@@ -361,6 +361,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			file_paths.push_back(fileName);
 			transformation_lock = false;
 			first_read = false;
+			on_point_cloud_change_callback(PointCloudChangeEvent::PCC_NEW_POINT_CLOUD);
 		}
 		else {
 			point_cloud pc_to_append;
@@ -377,6 +378,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				pc.append(pc_to_append);
 				transformation_lock = false;
 				printf("\n");
+				on_point_cloud_change_callback(PointCloudChangeEvent::PCC_NEW_POINT_CLOUD);
 			}
 		}
 	}
@@ -526,6 +528,22 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						pick_active=true;
 					}
 					return true;
+				}
+				break;
+			case cgv::gui::MA_WHEEL:
+				if (me.get_button_state() == cgv::gui::MB_RIGHT_BUTTON)
+				{
+					if (pickedComponent > -1) 
+					{
+						Dir vec;// = last_target_point - last_view_point;
+						if (me.get_dy() > 0)
+							vec = (last_target_point - last_view_point) * -0.1;
+						else
+							vec = (last_target_point - last_view_point) * 0.1;
+
+						vec += pc.component_translation(pickedComponent);
+						pc.component_translation(pickedComponent).set(vec.x(),vec.y(),vec.z());
+					}
 				}
 				break;
 			}
