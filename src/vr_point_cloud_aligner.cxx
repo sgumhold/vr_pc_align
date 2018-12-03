@@ -3,6 +3,7 @@
 #include <cgv/gui/key_event.h>
 #include <cgv/gui/mouse_event.h>
 #include "../sparseicp/ICP.h"
+#include "kabsch.h"
 #include <fstream>
 #include <cgv/utils/file.h>
 #include <cgv/gui/file_dialog.h>
@@ -35,6 +36,72 @@ void vr_point_cloud_aligner::generate_sample_boxes()
 		}
 	}
 }
+
+void vr_point_cloud_aligner::start_ICP()
+{
+	if (pickedComponent < 0 || previous_picked_component < 0) {
+		return;
+	}
+	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;
+	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source_copy;
+	component_info a  = pc.component_point_range(pickedComponent);
+	int p = 0;
+	//vertices , vertices_target;
+	vertices_source.resize(Eigen::NoChange, a.nr_points);
+	vertices_source_copy.resize(Eigen::NoChange, a.nr_points);
+
+	for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++) 
+	{
+		vertices_source(0, p) = pc.pnt(current_adress).x();
+		vertices_source(1, p) = pc.pnt(current_adress).y();
+		vertices_source(2, p) = pc.pnt(current_adress).z();
+
+		vertices_source_copy(0, p) = pc.pnt(current_adress).x();
+		vertices_source_copy(1, p) = pc.pnt(current_adress).y();
+		vertices_source_copy(2, p) = pc.pnt(current_adress).z();
+		++p;
+	}
+
+	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_target;
+	a = pc.component_point_range(previous_picked_component);
+	p = 0;
+	vertices_target.resize(Eigen::NoChange, a.nr_points);
+	for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
+	{
+		vertices_target(0, p) = pc.pnt(current_adress).x();
+		vertices_target(1, p) = pc.pnt(current_adress).y();
+		vertices_target(2, p) = pc.pnt(current_adress).z();
+		++p;
+	}
+	SICP::Parameters par;
+	par.p = .5;
+	par.max_icp = 20;
+	par.print_icpn = true;
+	///This takes long. Very long
+	SICP::point_to_point(vertices_source, vertices_target, par);
+	printf("ICP success\n");
+	///Now the vertices_source is recalculated and overwritten. we now need to calculate back the actual rotation and translation.
+	///This should be now possible through using some points in the source cloud that have been transformed. Because of correspondencies there is now a closed solution form
+	///Using this method the first 4 points should be enough to solve this. The test case now uses all points.
+	Eigen::Affine3d A = kabsch::Find3DAffineTransform(vertices_source_copy, vertices_source);
+	pc.component_translation(pickedComponent).set(A.translation().x(), A.translation().y(), A.translation().z());
+	cgv::math::mat<float> casted_mat;
+	casted_mat.resize(3, 3);
+	Eigen::Matrix<double, 3, 3> R = A.rotation();
+	int k = 0;
+	for (int i = 0; i < 3; ++i)
+	{
+		for (int j = 0; j < 3; ++j) 
+		{
+			casted_mat(i, j) = R(i,j);
+		}
+		k += 3;
+	}
+	pc.component_rotation(pickedComponent).set(casted_mat);
+	post_redraw();
+}
+
+
 
 void vr_point_cloud_aligner::generate_room_boxes()
 {
@@ -167,6 +234,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
 
 	pickedComponent = -1;
+	previous_picked_component = -1;
 	oldColor = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(0,0,0,0);
 }
@@ -246,14 +314,18 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 		
 		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i))) {
 			printf("Picked a scan");
-			if (pickedComponent > 0)
+			if (pickedComponent > 0) 
+			{
 				pc.component_color(pickedComponent) = oldColor;
-
+				previous_picked_component = pickedComponent;
+			}
+			
 			//Change color of box
 			oldColor = pc.component_color(i);
 			pc.component_color(i) = RGBA(1, 0, 0, 1);
 			pickedComponent = i;
 			post_redraw();
+			///This break ensures, the first intersected component is always picked
 			break;
 		}
 	}
@@ -499,6 +571,9 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				break;
 			case 'Y':
 				reset_componets_transformations();
+				return true;
+			case 'I':
+				start_ICP();
 				return true;
 			}
 		}

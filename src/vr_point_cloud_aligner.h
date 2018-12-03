@@ -33,9 +33,12 @@ private:
 	std::vector<std::string> file_paths;
 	cgv::render::surface_render_style box_render_style;
 	int pickedComponent;
+	int previous_picked_component;
 	RGBA oldColor;
 	void generate_sample_boxes();
 
+	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
+	void start_ICP();
 
 	/// homogeneous matrix used to unproject mouse locations
 	cgv::render::context::mat_type DPV;
