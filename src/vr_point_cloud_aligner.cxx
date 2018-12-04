@@ -52,13 +52,15 @@ void vr_point_cloud_aligner::start_ICP()
 
 	for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++) 
 	{
-		vertices_source(0, p) = pc.pnt(current_adress).x();
-		vertices_source(1, p) = pc.pnt(current_adress).y();
-		vertices_source(2, p) = pc.pnt(current_adress).z();
+		Pnt tr_pnt= pc.transformed_pnt(current_adress);
+		vertices_source(0, p) = tr_pnt.x();
+		vertices_source(1, p) = tr_pnt.y();
+		vertices_source(2, p) = tr_pnt.z();
 
-		vertices_source_copy(0, p) = pc.pnt(current_adress).x();
-		vertices_source_copy(1, p) = pc.pnt(current_adress).y();
-		vertices_source_copy(2, p) = pc.pnt(current_adress).z();
+		Pnt _pnt = pc.transformed_pnt(current_adress);
+		vertices_source_copy(0, p) = _pnt.x();
+		vertices_source_copy(1, p) = _pnt.y();
+		vertices_source_copy(2, p) = _pnt.z();
 		++p;
 	}
 
@@ -68,9 +70,10 @@ void vr_point_cloud_aligner::start_ICP()
 	vertices_target.resize(Eigen::NoChange, a.nr_points);
 	for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
 	{
-		vertices_target(0, p) = pc.pnt(current_adress).x();
-		vertices_target(1, p) = pc.pnt(current_adress).y();
-		vertices_target(2, p) = pc.pnt(current_adress).z();
+		Pnt tr_pnt = pc.transformed_pnt(current_adress);
+		vertices_target(0, p) = tr_pnt.x();
+		vertices_target(1, p) = tr_pnt.y();
+		vertices_target(2, p) = tr_pnt.z();
 		++p;
 	}
 	SICP::Parameters par;
@@ -236,7 +239,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	pickedComponent = -1;
 	previous_picked_component = -1;
 	oldColor = RGBA(1, 1, 1, 1);
-	defaultFacing = cgv::math::quaternion<float>(0,0,0,0);
+	defaultFacing = cgv::math::quaternion<float>(1,0,0,0);
 }
 
 
@@ -289,7 +292,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	DPV = ctx.get_DPV();
 
 	point_cloud_interactable::draw(ctx);
-	
+
 	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
 	b_renderer.set_render_style(box_render_style);
 
@@ -307,30 +310,52 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	}*/
 
 	//check for box intersections
-	if(have_picked_point && pick_active)
-	for (int i = 0; i < pc.get_nr_components(); i++)
+	if (have_picked_point && pick_active)
 	{
-		//Problem: There is no way to access the boxes of the components!
-		
-		if (Pnt(-1000, -1000, -1000) != box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i))) {
+		std::vector<Crd> intersectedPoints;
+		std::vector<int> component_NR;
+		for (int i = 0; i < pc.get_nr_components(); i++)
+		{
+			Crd temp = box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i));
+			if (temp != Crd(-1000))
+			{
+				intersectedPoints.push_back(temp);
+				component_NR.push_back(i);
+			}
+		}
+
+		int toPrint = intersectedPoints.size();
+		printf("%d", toPrint);
+		if (intersectedPoints.size() != 0) 
+		{
+			Dir ray_dir = picked_point - last_view_point;
+			float z_factor_min = 1000.0f;
+			int min_component = -1;
+			for (int i = 0; i < intersectedPoints.size(); ++i)
+			{
+				if (z_factor_min > intersectedPoints.at(i)) 
+				{
+					min_component = i;
+					z_factor_min = intersectedPoints.at(i);
+				}
+			}
+
 			printf("Picked a scan");
-			if (pickedComponent > 0) 
+			if (pickedComponent > 0)
 			{
 				pc.component_color(pickedComponent) = oldColor;
 				previous_picked_component = pickedComponent;
 			}
-			
+			int a = component_NR.at(min_component);
 			//Change color of box
-			oldColor = pc.component_color(i);
-			pc.component_color(i) = RGBA(1, 0, 0, 1);
-			pickedComponent = i;
+			oldColor = pc.component_color(a);
+			pc.component_color(a) = RGBA(1, 0, 0, 1);
+			pickedComponent = a;
 			post_redraw();
-			///This break ensures, the first intersected component is always picked
-			break;
 		}
-	}
-	pick_active = false;
 
+		pick_active = false;
+	}
 	if (have_view_ray) {
 		glLineWidth(5);
 		glColor3f(1, 1, 0);
@@ -372,7 +397,7 @@ point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	return result;
 }
 
-point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_end, const Box& box, const Dir& box_translation, const Qat& box_rotation)
+point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_end, const Box& box, const Dir& box_translation, const Qat& box_rotation)
 {
 	//Implementation plan: apply inverse transformations to rays to transform them to the local coordinate system of the box. Calculate intersection there, then transfrom back to global
 	Pnt local_ray_start = transform_to_local(ray_start,box_translation,box_rotation);
@@ -380,7 +405,7 @@ point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	Pnt local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
 	//There is no intersection
 	if(local_result == Pnt(-1000, -1000, -1000))
-		return Pnt(-1000, -1000, -1000);
+		return Crd(-1000);
 	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
 	Pnt global_intersection_point = box_rotation.apply( local_intersection_point) + box_translation;
 	Dir ray_dir = ray_end - ray_start;
@@ -405,7 +430,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		//pc.create_components();
 		//File Format looks like this:
 		//path of file			Translation	Quarternion(rotation)	UserFlag
-		//componentpath.ply		x y z		qx qy qz qw				isUserModified
+		//componentpath.ply		x y z		re qx qy qz				isUserModified
 		std::string fileName;
 		float x, y, z;
 		double re, xi, yi, zi;
@@ -464,7 +489,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 		printf("Keine Komponenten zum speichern!");
 	}
 	for (int i = 0; i < pc.get_nr_components(); i++) {
-		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << '\n';
+		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).im() << ' ' << pc.component_rotation(i).re() << ' ' << user_modified.at(i) << '\n';
 	}
 	outFile.close();
 }
@@ -632,6 +657,7 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 {
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
 	if (pcc_event == PCC_NEW_POINT_CLOUD) {
+		/*
 		int i = pc.get_nr_components();
 		if (i <= 0) {
 			return;
@@ -661,7 +687,7 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 				}
 			}
 		}
-		transformation_lock = false;
+		transformation_lock = false;*/
 	}
 	// do more handling of point clout change events here
 }
@@ -674,7 +700,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 		{
 			float x = 5.1 / nr;
 			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));				
-			pc.component_rotation(i).set(defaultFacing);
+			pc.component_rotation(i) = defaultFacing;
 		}
 	}
 	post_redraw();

@@ -124,7 +124,7 @@ public:
 	/// main rendering method
 	void draw(cgv::render::context& ctx);
 	Pnt box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
-	Pnt box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
+	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
 
 	/// loads given Transformations and flags from File
 	void load_project_file(std::string projectFile);
