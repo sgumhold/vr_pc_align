@@ -76,31 +76,58 @@ void vr_point_cloud_aligner::start_ICP()
 		vertices_target(2, p) = tr_pnt.z();
 		++p;
 	}
-	SICP::Parameters par;
+	ICP::Parameters par;
 	par.p = .5;
-	par.max_icp = 20;
-	par.print_icpn = true;
-	///This takes long. Very long
-	SICP::point_to_point(vertices_source, vertices_target, par);
-	printf("ICP success\n");
+	par.max_icp = 100;
+	ICP::point_to_point(vertices_source, vertices_target, par);
+	printf("ICP finished\n");
 	///Now the vertices_source is recalculated and overwritten. we now need to calculate back the actual rotation and translation.
 	///This should be now possible through using some points in the source cloud that have been transformed. Because of correspondencies there is now a closed solution form
 	///Using this method the first 4 points should be enough to solve this. The test case now uses all points.
 	Eigen::Affine3d A = kabsch::Find3DAffineTransform(vertices_source_copy, vertices_source);
-	pc.component_translation(pickedComponent).set(A.translation().x(), A.translation().y(), A.translation().z());
+	for (int m = 0; m < 10; ++m) 
+	{
+		printf("ICPresult %d: %f, %f, %f; Original: %f, %f, %f; Target: %f, %f, %f \n", m, vertices_source(0, m), vertices_source(1, m), vertices_source(2, m), vertices_source_copy(0, m), vertices_source_copy(1, m), vertices_source_copy(2, m), vertices_target(0, m), vertices_target(1, m), vertices_target(2, m));
+	}
+	Eigen::Vector3d vec = A.translation();
 	cgv::math::mat<float> casted_mat;
 	casted_mat.resize(3, 3);
 	Eigen::Matrix<double, 3, 3> R = A.rotation();
-	int k = 0;
-	for (int i = 0; i < 3; ++i)
-	{
-		for (int j = 0; j < 3; ++j) 
-		{
-			casted_mat(i, j) = R(i,j);
+	
+	float m00 = R(0, 0),m01=R(0,1),m02 =R(0,2), m10=R(1,0), m11 = R(1, 1), m12 = R(1,2), m20 = R(2,0), m21 = R(2,1), m22 = R(2, 2);
+	float qx, qy, qz, qw;
+	float tr = m00 + m11 + m22;
+
+		if (tr > 0) {
+			float S = sqrt(tr + 1.0) * 2; // S=4*qw 
+			qw = 0.25 * S;
+			qx = (m21 - m12) / S;
+			qy = (m02 - m20) / S;
+			qz = (m10 - m01) / S;
 		}
-		k += 3;
-	}
-	pc.component_rotation(pickedComponent).set(casted_mat);
+		else if ((m00 > m11)&(m00 > m22)) {
+			float S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx 
+			qw = (m21 - m12) / S;
+			qx = 0.25 * S;
+			qy = (m01 + m10) / S;
+			qz = (m02 + m20) / S;
+		}
+		else if (m11 > m22) {
+			float S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
+			qw = (m02 - m20) / S;
+			qx = (m01 + m10) / S;
+			qy = 0.25 * S;
+			qz = (m12 + m21) / S;
+		}
+		else {
+			float S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
+			qw = (m10 - m01) / S;
+			qx = (m02 + m20) / S;
+			qy = (m12 + m21) / S;
+			qz = 0.25 * S;
+		}
+	pc.component_translation(pickedComponent).set(vec.x(),vec.y(),vec.z());
+	pc.component_rotation(pickedComponent).set(qw,qx,qy,qz);
 	post_redraw();
 }
 
