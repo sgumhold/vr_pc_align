@@ -12,7 +12,7 @@ interval::interval(double a, double b)
 	else {
 		a = 0;
 		b = 0;
-		this->setInvalid();
+		invalid = true;
 	}
 }
 

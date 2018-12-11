@@ -57,7 +57,7 @@ void vr_point_cloud_aligner::start_ICP()
 		vertices_source(1, p) = tr_pnt.y();
 		vertices_source(2, p) = tr_pnt.z();
 
-		Pnt _pnt = pc.transformed_pnt(current_adress);
+		Pnt _pnt = pc.pnt(current_adress);
 		vertices_source_copy(0, p) = _pnt.x();
 		vertices_source_copy(1, p) = _pnt.y();
 		vertices_source_copy(2, p) = _pnt.z();
@@ -409,7 +409,7 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
 	Pnt global_intersection_point = box_rotation.apply( local_intersection_point) + box_translation;
 	Dir ray_dir = ray_end - ray_start;
-	Crd global_result = ((global_intersection_point - ray_start).x() / ray_dir.x());
+	Crd global_result = ((global_intersection_point.x() - ray_start.x()) / ray_dir.x());
 	return global_result;
 }
 
@@ -433,7 +433,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		//componentpath.ply		x y z		re qx qy qz				isUserModified
 		std::string fileName;
 		float x, y, z;
-		double re, xi, yi, zi;
+		float re, xi, yi, zi;
 		bool isUserModified;
 		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> isUserModified)) {
 			//If reading fails, continue next
@@ -515,7 +515,7 @@ interval vr_point_cloud_aligner::calculate_intersectionintervall(double rayStart
 	if (vx == 0)
 	{
 		// Does not interesect the given axis of the box -> no intersection
-		interval a(0,0);
+		interval a(1,0);
 		return a;
 	}
 	else if (vx > 0)
@@ -536,12 +536,7 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 	// check if a matrix for unprojection is available
 	if (DPV.size() == 0)
 		return;
-	GLdouble objx, objy, objz,objx2,objy2,objz2;
-	//Use graphics libary to unproject
-	//gluUnProject(x, y, 0, , , , &objx, &objy, &objz);
-	//gluUnProject(x, y, 1, , , , &objx2, &objy2, &objz2);
-
-
+	
 	double z = ctx.get_z_D(x, y);
 	// check for background
 	if (z > 0.99999999) {
