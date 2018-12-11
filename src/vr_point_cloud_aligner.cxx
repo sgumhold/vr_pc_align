@@ -85,11 +85,12 @@ void vr_point_cloud_aligner::start_ICP()
 	///This should be now possible through using some points in the source cloud that have been transformed. Because of correspondencies there is now a closed solution form
 	///Using this method the first 4 points should be enough to solve this. The test case now uses all points.
 	Eigen::Affine3d A = kabsch::Find3DAffineTransform(vertices_source_copy, vertices_source);
-	for (int m = 0; m < 10; ++m) 
+	for (int m = 0; m < 5; ++m) 
 	{
+		printf("First 5 Points of ICP:\n");
 		printf("ICPresult %d: %f, %f, %f; Original: %f, %f, %f; Target: %f, %f, %f \n", m, vertices_source(0, m), vertices_source(1, m), vertices_source(2, m), vertices_source_copy(0, m), vertices_source_copy(1, m), vertices_source_copy(2, m), vertices_target(0, m), vertices_target(1, m), vertices_target(2, m));
 	}
-	Eigen::Vector3d vec = A.translation();
+	Eigen::Vector3d translation_vec = A.translation();
 	cgv::math::mat<float> casted_mat;
 	casted_mat.resize(3, 3);
 	Eigen::Matrix<double, 3, 3> R = A.rotation();
@@ -126,7 +127,7 @@ void vr_point_cloud_aligner::start_ICP()
 			qy = (m12 + m21) / S;
 			qz = 0.25 * S;
 		}
-	pc.component_translation(pickedComponent).set(vec.x(),vec.y(),vec.z());
+	pc.component_translation(pickedComponent).set(translation_vec.x(),translation_vec.y(),translation_vec.z());
 	pc.component_rotation(pickedComponent).set(qw,qx,qy,qz);
 	post_redraw();
 }
@@ -516,7 +517,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 		printf("Keine Komponenten zum speichern!");
 	}
 	for (int i = 0; i < pc.get_nr_components(); i++) {
-		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).im() << ' ' << pc.component_rotation(i).re() << ' ' << user_modified.at(i) << '\n';
+		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << '\n';
 	}
 	outFile.close();
 }
