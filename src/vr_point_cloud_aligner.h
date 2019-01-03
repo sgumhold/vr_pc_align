@@ -6,6 +6,7 @@
 
 #include <cgv/gui/file_dialog.h>
 #include "interval.h"
+#include "constructed_set.h"
 #include "lib_begin.h"
 
 
@@ -39,6 +40,9 @@ private:
 
 	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
 	void start_ICP();
+	
+	/// stores information about aligned sets of scans
+	std::vector<constructed_set> sets;
 
 	/// homogeneous matrix used to unproject mouse locations
 	cgv::render::context::mat_type DPV;

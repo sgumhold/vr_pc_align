@@ -9,7 +9,6 @@
 #include <cgv/gui/file_dialog.h>
 #include <libs/cgv_gl/gl/gl.h>
 
-
 #define FILE_OPEN_TITLE "Open Transformation Project"
 #define FILE_OPEN_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
 
@@ -130,6 +129,8 @@ void vr_point_cloud_aligner::start_ICP()
 	pc.component_translation(pickedComponent).set(translation_vec.x(),translation_vec.y(),translation_vec.z());
 	pc.component_rotation(pickedComponent).set(qw,qx,qy,qz);
 	post_redraw();
+
+	
 }
 
 
@@ -452,6 +453,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 	}
 	std::string line;
 	bool first_read = true;
+	std::vector<int> alignment_IDs;
 	while (std::getline(inFile, line))
 	{
 		std::istringstream iss(line);
@@ -460,17 +462,18 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		//path of file			Translation	Quarternion(rotation)	UserFlag
 		//componentpath.ply		x y z		re qx qy qz				isUserModified
 		std::string fileName;
+		int alignment_ID;
 		float x, y, z;
 		float re, xi, yi, zi;
 		bool isUserModified;
-		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> isUserModified)) {
+		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> isUserModified >> alignment_ID)) {
 			//If reading fails, continue next
 			continue;
 		}
 		if (fileName.empty()) {
 			continue;
 		}
-		///This is necessary so that hte create componets functions does not create empty components
+		///This is necessary so that the create componets functions does not create empty components
 		if (first_read) {
 			if (!pc.read(fileName)) {
 				continue;
@@ -486,6 +489,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			file_paths.push_back(fileName);
 			transformation_lock = false;
 			first_read = false;
+			alignment_IDs.push_back(alignment_ID);
 			on_point_cloud_change_callback(PointCloudChangeEvent::PCC_NEW_POINT_CLOUD);
 		}
 		else {
@@ -502,11 +506,43 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				file_paths.push_back(fileName);
 				pc.append(pc_to_append);
 				transformation_lock = false;
+				alignment_IDs.push_back(alignment_ID);
 				printf("\n");
 				on_point_cloud_change_callback(PointCloudChangeEvent::PCC_NEW_POINT_CLOUD);
 			}
 		}
 	}
+
+	// Algorithm to reconstruct the unite set structure
+	std::vector<constructed_set> copySet;
+	for (int l = 0; l < alignment_IDs.size(); ++l)
+	{
+		std::vector<int> a;
+		a.push_back(l);
+		copySet.push_back(constructed_set(a, alignment_IDs.at(l)));
+	}
+	std::vector<int> usedIDs;
+	for(int l = 0; l < alignment_IDs.size(); ++l)
+	{
+		int currentminimizer = alignment_IDs.at(l);
+		bool skip = false;
+		for (int k = 0; k < usedIDs.size(); ++k)
+		{
+			if (currentminimizer == usedIDs.at(k))
+				skip = true;
+		}
+		if (skip)
+			continue;
+		std::vector<int> b;
+		constructed_set currentSet(b, currentminimizer);
+		for (int j = 0; j < copySet.size(); ++j)
+		{
+			if (currentminimizer == copySet.at(j).get_ID())
+				currentSet.unite(copySet.at(j));
+		}
+		sets.push_back(currentSet);
+	}
+
 }
 
 void vr_point_cloud_aligner::save_project_file(std::string projectFile)
@@ -666,6 +702,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 
 						vec += pc.component_translation(pickedComponent);
 						pc.component_translation(pickedComponent).set(vec.x(),vec.y(),vec.z());
+						return true;
 					}
 				}
 				break;
@@ -679,40 +716,69 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEvent pcc_event)
 {
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
-	if (pcc_event == PCC_NEW_POINT_CLOUD) {
-		/*
+	if (pcc_event == 11) {
+		
 		int i = pc.get_nr_components();
 		if (i <= 0) {
 			return;
 		}
-		transformation_lock = true;
-		if (user_modified.at(i-1))	//Check if this is a new Point cloud
-		{
-			// a new Pointcloud has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
-			int nr = 0;
-			for (int a = 0; a < user_modified.size(); a++) {
-				if (!user_modified.at(a)) {
-					nr++;
-				}
-			}
 
-			if (nr > 0)
-			{
-				for (int i = 0; i < pc.get_nr_components(); i++)
-				{
-					float x = 5.1 / nr;
-					if (!user_modified.at(i)) 
-					{
-						pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
-						pc.component_rotation(i).set(defaultFacing);
-					}
-					
-				}
+		transformation_lock = true;
+		
+		// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
+		int nr = 0;
+		for (int a = 0; a < user_modified.size(); a++) {
+			if (!user_modified.at(a)) {
+				nr++;
 			}
 		}
-		transformation_lock = false;*/
+
+		if (nr > 0)
+		{
+			for (int i = 0; i < pc.get_nr_components(); i++)
+			{
+				float x = 5.1 / nr;
+				if (!user_modified.at(i)) 
+				{
+					pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+					pc.component_rotation(i) = (defaultFacing);
+				}
+					
+			}
+		}
+		else 
+		{
+			reset_componets_transformations();
+		}
+		
+		transformation_lock = false;
+		//The newest added component is pushed back as a new single unit set
+		sets.push_back(constructed_set(std::vector<int>(pc.get_nr_components() - 1), sets.size()));
+	}
+	if (pcc_event == PCC_NEW_POINT_CLOUD)
+	{
+		if (pc.get_nr_components() != user_modified.size())
+		{
+			//Problem: how to tell if append or deleteionloading is applied
+			//Solution: check num of components first and flush and rewrite
+			//A non append operation has been made, reset stacks and reiterate them
+			file_paths.clear();
+			user_modified.clear();
+
+			void* handle = cgv::utils::file::find_first(directory_name + "/*.*");
+			while (handle) {
+				if (!cgv::utils::file::find_directory(handle))
+				{
+					file_paths.push_back(directory_name + "/" + cgv::utils::file::find_name(handle));
+					user_modified.push_back(false);
+				}
+				handle = cgv::utils::file::find_next(handle);
+			}
+
+		}
 	}
 	// do more handling of point clout change events here
+	post_redraw();
 }
 
 void vr_point_cloud_aligner::reset_componets_transformations() {
@@ -740,12 +806,15 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	if (member_ptr == &directory_name) {
 		//Problem: how to match filenames to components?
 		//Solution: use the exact same method to get the same order as like in point_cloud_interactable.cxx
+
 		void* handle = cgv::utils::file::find_first(directory_name + "/*.*");
 		while (handle) {
-			if (!cgv::utils::file::find_directory(handle))
+			if (!cgv::utils::file::find_directory(handle)) 
+			{
 				file_paths.push_back(directory_name + "/" + cgv::utils::file::find_name(handle));
+				user_modified.push_back(false);
+			}
 			handle = cgv::utils::file::find_next(handle);
-			user_modified.push_back(false);
 		}
 		//Continue with internal method
 	}
@@ -754,7 +823,7 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	}
 	if(!transformation_lock && pc.get_nr_components()>0)
 	for (int i = 0; i < pc.get_nr_components(); i++) {
-		if (member_ptr == &pc.component_rotation(i) || &pc.component_translation(i))
+		if (member_ptr == &pc.component_rotation(i) || member_ptr == &pc.component_translation(i))
 		{
 			user_modified.at(i) = true;
 			break;
