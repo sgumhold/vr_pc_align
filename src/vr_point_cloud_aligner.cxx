@@ -269,6 +269,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	previous_picked_component = -1;
 	oldColor = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1,0,0,0);
+	projectLoading_in_process = false;
 }
 
 
@@ -453,14 +454,17 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 	}
 	std::string line;
 	bool first_read = true;
+	projectLoading_in_process = true;
 	std::vector<int> alignment_IDs;
+	user_modified.clear();
+	file_paths.clear();
 	while (std::getline(inFile, line))
 	{
 		std::istringstream iss(line);
 		//pc.create_components();
 		//File Format looks like this:
-		//path of file			Translation	Quarternion(rotation)	UserFlag
-		//componentpath.ply		x y z		re qx qy qz				isUserModified
+		//path of file			Translation	Quarternion(rotation)	UserFlag		alignment ID
+		//componentpath.ply		x y z		re qx qy qz				isUserModified	id
 		std::string fileName;
 		int alignment_ID;
 		float x, y, z;
@@ -508,7 +512,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				transformation_lock = false;
 				alignment_IDs.push_back(alignment_ID);
 				printf("\n");
-				on_point_cloud_change_callback(PointCloudChangeEvent::PCC_NEW_POINT_CLOUD);
+				on_point_cloud_change_callback(PointCloudChangeEvent(PCC_POINTS_RESIZE + PCC_COMPONENTS_RESIZE));
 			}
 		}
 	}
@@ -541,8 +545,9 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				currentSet.unite(copySet.at(j));
 		}
 		sets.push_back(currentSet);
+		usedIDs.push_back(currentminimizer);
 	}
-
+	projectLoading_in_process = false;
 }
 
 void vr_point_cloud_aligner::save_project_file(std::string projectFile)
@@ -553,7 +558,13 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 		printf("Keine Komponenten zum speichern!");
 	}
 	for (int i = 0; i < pc.get_nr_components(); i++) {
-		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << '\n';
+		int alignmentID = -1;
+		for (int c = 0; c < sets.size(); ++c) 
+		{
+			if (sets.at(c).find_component_ID(i))
+				alignmentID = c;
+		}
+		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << sets.at(alignmentID).get_ID() <<'\n';
 	}
 	outFile.close();
 }
@@ -716,7 +727,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEvent pcc_event)
 {
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
-	if (pcc_event == 11) {
+	if (pcc_event == 11 && !projectLoading_in_process) {
 		
 		int i = pc.get_nr_components();
 		if (i <= 0) {
@@ -728,7 +739,7 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 		// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
 		int nr = 0;
 		for (int a = 0; a < user_modified.size(); a++) {
-			if (!user_modified.at(a)) {
+			if (user_modified.at(a)) {
 				nr++;
 			}
 		}
@@ -755,7 +766,7 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 		//The newest added component is pushed back as a new single unit set
 		sets.push_back(constructed_set(std::vector<int>(pc.get_nr_components() - 1), sets.size()));
 	}
-	if (pcc_event == PCC_NEW_POINT_CLOUD)
+	if (pcc_event == PCC_NEW_POINT_CLOUD && !projectLoading_in_process)
 	{
 		if (pc.get_nr_components() != user_modified.size())
 		{

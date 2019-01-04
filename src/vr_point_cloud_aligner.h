@@ -24,6 +24,8 @@ protected:
 	std::string project_file;
 	///The default facing where scans should look at
 	cgv::math::quaternion<float> defaultFacing;
+	///Indicates, that a project file is loaded and the process is not finished yet
+	bool projectLoading_in_process;
 
 private:
 	std::vector<Box> sample_boxes;
