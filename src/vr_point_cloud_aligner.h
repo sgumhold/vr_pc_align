@@ -16,9 +16,6 @@
 class CGV_API vr_point_cloud_aligner : public point_cloud_interactable  
 {
 protected:
-	/// examples of how to control a member variables (see contructor, self_reflect, stream_stats, stream_help, create_gui, handle)
-	size_t sample_member_rows;
-	size_t sample_member_cols;
 
 	///ProjectFilepath
 	std::string project_file;
@@ -27,8 +24,12 @@ protected:
 	///Indicates, that a project file is loaded and the process is not finished yet
 	bool projectLoading_in_process;
 
+	///flag for the last icp process
+	bool icp_executed;
+	///Transformation of component that was affected by last icp
+	std::vector<Dir> latest_overwritten_transformation;
+
 private:
-	std::vector<Box> sample_boxes;
 	std::vector<Box> room_boxes;
 	std::vector<Clr> sample_box_colors;
 	std::vector<Clr> room_colors;
@@ -77,7 +78,7 @@ private:
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
-	//aligns the scans along the line
+	//aligns not user modified scans along the line
 	void position_scans();
 	//Helper function
 	Clr generate_a_valid_color(int color);

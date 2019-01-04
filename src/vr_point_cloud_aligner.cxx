@@ -15,27 +15,6 @@
 #define FILE_SAVE_TITLE "Tramsformation Projects"
 #define FILE_SAVE_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
 
-void vr_point_cloud_aligner::generate_sample_boxes()
-{
-	sample_boxes.clear();
-	sample_box_colors.clear();
-	for (size_t i = 0; i < sample_member_rows; ++i) {
-		for (size_t j = 0; j < sample_member_cols; ++j) {
-			Box B;
-			B.add_point(Pnt(Crd(i), Crd(j), 0));
-			B.add_point(Pnt(i + 0.5f, j + 0.5f, 1));
-			sample_boxes.push_back(B);
-			sample_box_colors.push_back(
-				Clr( // to support float and uint8 color components, use to float_to_color_component function to convert from a double value
-					float_to_color_component(double(i) / (sample_member_rows - 1)),
-					float_to_color_component(double(j) / (sample_member_cols - 1)),
-					float_to_color_component(0.5)
-				)
-			);
-		}
-	}
-}
-
 void vr_point_cloud_aligner::start_ICP()
 {
 	if (pickedComponent < 0 || previous_picked_component < 0) {
@@ -206,7 +185,30 @@ void vr_point_cloud_aligner::generate_room_boxes()
 
 void vr_point_cloud_aligner::position_scans() 
 {
-	int i = 0;
+	// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
+	int nr = 0;
+	for (int a = 0; a < user_modified.size(); a++) {
+		if (user_modified.at(a)) {
+			nr++;
+		}
+	}
+	if (nr > 0) 
+	{
+		for (int i = 0; i < pc.get_nr_components(); i++)
+		{
+			float x = 5.1 / nr;
+			if (!user_modified.at(i))
+			{
+				pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+				pc.component_rotation(i) = (defaultFacing);
+			}
+
+		}
+	}
+	else 
+	{
+		reset_componets_transformations();
+	}
 }
 
 point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
@@ -258,8 +260,6 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	last_view_point = Pnt(0, 0, 0);
 	have_view_ray = false;
 
-	sample_member_rows = 5;
-	sample_member_cols = 5;
 	generate_room_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
@@ -281,8 +281,8 @@ std::string vr_point_cloud_aligner::get_type_name() const
 bool vr_point_cloud_aligner::self_reflect(cgv::reflect::reflection_handler& rh)
 {
 	return 
-		rh.reflect_member("sample_member_rows", sample_member_rows) &&
-		rh.reflect_member("sample_member_cols", sample_member_cols) &&
+		//rh.reflect_member("sample_member_rows", sample_member_rows) &&
+		//rh.reflect_member("sample_member_cols", sample_member_cols) &&
 		point_cloud_interactable::self_reflect(rh);
 }
 void vr_point_cloud_aligner::stream_help(std::ostream& os)
@@ -297,7 +297,7 @@ void vr_point_cloud_aligner::stream_stats(std::ostream& os)
 	point_cloud_interactable::stream_stats(os);
 
 	// stream out more statistics here or comment out call to point_cloud_interactable::stream_stats and stream out all relevant stats here
-	os << "   rows x cols: " << sample_member_rows << " x " << sample_member_cols << std::endl;
+	//os << "   rows x cols: " << sample_member_rows << " x " << sample_member_cols << std::endl;
 }
 
 
@@ -325,19 +325,6 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 
 	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
 	b_renderer.set_render_style(box_render_style);
-
-	// draw box around picked point
-	/*
-	if (have_picked_point) {
-		b_renderer.set_position_is_center(true);
-		b_renderer.set_position_array(ctx, &picked_point, 1);
-		Pnt extent(picked_box_extent, picked_box_extent, picked_box_extent);
-		b_renderer.set_extent_array(ctx, &extent, 1);
-		b_renderer.set_color_array(ctx, &picked_box_color, 1);
-		b_renderer.validate_and_enable(ctx);
-		glDrawArrays(GL_POINTS, 0, 1);
-		b_renderer.disable(ctx);
-	}*/
 
 	//check for box intersections
 	if (have_picked_point && pick_active)
@@ -562,7 +549,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 		for (int c = 0; c < sets.size(); ++c) 
 		{
 			if (sets.at(c).find_component_ID(i))
-				alignmentID = c;
+				alignmentID = sets.at(c).get_ID();
 		}
 		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << sets.at(alignmentID).get_ID() <<'\n';
 	}
@@ -632,38 +619,6 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 		cgv::gui::key_event& ke = static_cast<cgv::gui::key_event&>(e);
 		if (ke.get_action() == cgv::gui::KA_PRESS || ke.get_action() == cgv::gui::KA_REPEAT) {
 			switch (ke.get_key()) {
-			case 'R':
-				switch (e.get_modifiers()) {
-				case 0:
-					++sample_member_rows;
-					on_set(&sample_member_rows);
-					return true;
-				case cgv::gui::EM_SHIFT:
-					if (sample_member_rows > 0) {
-						--sample_member_rows;
-						on_set(&sample_member_rows);
-					}
-					return true;
-				default:
-					break;
-				}
-				break;
-			case 'C':
-				switch (e.get_modifiers()) {
-				case 0:
-					++sample_member_cols;
-					on_set(&sample_member_cols);
-					return true;
-				case cgv::gui::EM_SHIFT:
-					if (sample_member_cols > 0) {
-						--sample_member_cols;
-						on_set(&sample_member_cols);
-					}
-					return true;
-				default:
-					break;
-				}
-				break;
 			case 'Y':
 				reset_componets_transformations();
 				return true;
@@ -736,31 +691,7 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 
 		transformation_lock = true;
 		
-		// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
-		int nr = 0;
-		for (int a = 0; a < user_modified.size(); a++) {
-			if (user_modified.at(a)) {
-				nr++;
-			}
-		}
-
-		if (nr > 0)
-		{
-			for (int i = 0; i < pc.get_nr_components(); i++)
-			{
-				float x = 5.1 / nr;
-				if (!user_modified.at(i)) 
-				{
-					pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
-					pc.component_rotation(i) = (defaultFacing);
-				}
-					
-			}
-		}
-		else 
-		{
-			reset_componets_transformations();
-		}
+		position_scans();
 		
 		transformation_lock = false;
 		//The newest added component is pushed back as a new single unit set
@@ -808,9 +739,6 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 
 void vr_point_cloud_aligner::on_set(void* member_ptr)
 {
-	if (member_ptr == &sample_member_rows || member_ptr == &sample_member_cols) {
-		generate_sample_boxes();
-	}
 	if (member_ptr == &project_file) {
 		load_project_file(project_file);
 	}
@@ -848,28 +776,14 @@ void vr_point_cloud_aligner::create_gui()
 {
 	// start with gui for based class
 	point_cloud_interactable::create_gui();
-	/*
-	// add own gui
-	if (begin_tree_node("sample gui", sample_boxes, true, "level=3")) {
-		align("\a"); // increase identation
-		add_member_control(this, "rows", sample_member_rows, "value_slider", "min=1;max=20;ticks=true");
-		add_member_control(this, "cols", sample_member_cols, "value_slider", "min=1;max=20;ticks=true");
-		if (begin_tree_node("box style", box_render_style, false, "level=3")) {
-			align("\a"); // increase identation
-			add_gui("box render style", box_render_style);
-			align("\b"); // decrease identation
-			end_tree_node(box_render_style);
-		}
-		align("\b"); // decrease identation
-		end_tree_node(sample_boxes);
-	}*/
+
 	if (begin_tree_node("picking", have_picked_point, true, "level=3")) {
 		align("\a"); // increase identation
 		add_gui("position", picked_point, "options='active=false'");
 		add_member_control(this, "box extent", picked_box_extent, "value_slider", "min=0.0001;max=10;ticks=true;log=true");
 		add_member_control(this, "box color", picked_box_color);
 		align("\b"); // decrease identation
-		end_tree_node(sample_boxes);
+		end_tree_node(room_boxes);
 	}
 
 	//GUI for saving Transformations from scans
