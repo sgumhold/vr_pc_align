@@ -356,18 +356,26 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 					z_factor_min = intersectedPoints.at(i);
 				}
 			}
-
-			printf("Picked a scan");
-			if (pickedComponent > 0)
-			{
-				pc.component_color(pickedComponent) = oldColor;
-				previous_picked_component = pickedComponent;
-			}
 			int a = component_NR.at(min_component);
-			//Change color of box
-			oldColor = pc.component_color(a);
-			pc.component_color(a) = RGBA(1, 0, 0, 1);
-			pickedComponent = a;
+
+			if (a == pickedComponent && pickedComponent != -1) 
+			{
+				printf("deselected scan");
+				pc.component_color(pickedComponent) = oldColor;
+				previous_picked_component = -1;
+				pickedComponent = -1;
+			}
+			else if (a >= 0)
+			{
+				printf("Picked a scan");
+				if(pickedComponent > 0)
+					pc.component_color(pickedComponent) = oldColor;
+				previous_picked_component = pickedComponent;
+				//Change color of box
+				oldColor = pc.component_color(a);
+				pc.component_color(a) = RGBA(1, 0, 0, 1);
+				pickedComponent = a;
+			}
 			post_redraw();
 		}
 
