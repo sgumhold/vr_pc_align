@@ -4,10 +4,12 @@
 #include <cgv/gui/mouse_event.h>
 #include "../sparseicp/ICP.h"
 #include "kabsch.h"
+#include <cgv/base/find_action.h>
 #include <fstream>
 #include <cgv/utils/file.h>
 #include <cgv/gui/file_dialog.h>
 #include <libs/cgv_gl/gl/gl.h>
+
 
 #define FILE_OPEN_TITLE "Open Transformation Project"
 #define FILE_OPEN_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
@@ -30,6 +32,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	picked_point = Pnt(0, 0, 0);
 	last_view_point = Pnt(0, 0, 0);
 	have_view_ray = false;
+	icp_executing = false;
 
 	generate_room_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
@@ -259,9 +262,24 @@ void vr_point_cloud_aligner::display_unite_question()
 			sets.erase(sets.begin() + otherPos);
 		}
 	}
+	/// if not reset to old state
+	else
+	{
+		pc.component_translation(pickedComponent) = latest_overwritten_translation;
+		pc.component_rotation(pickedComponent) = latest_overwritten_rotation;
+		post_redraw();
+	}
 
 }
 
+
+void vr_point_cloud_aligner::save_back_origin_state()
+{
+	if (pickedComponent < 0 || previous_picked_component < 0)
+			return;
+	latest_overwritten_translation = pc.component_translation(pickedComponent);
+	latest_overwritten_rotation = pc.component_rotation(pickedComponent);
+}
 
 void vr_point_cloud_aligner::start_ICP()
 {
@@ -360,7 +378,6 @@ void vr_point_cloud_aligner::start_ICP()
 	
 }
 
-#include <cgv/base/find_action.h>
 
 bool vr_point_cloud_aligner::ensure_view_pointer()
 {
@@ -694,6 +711,9 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				reset_componets_transformations();
 				return true;
 			case 'I':
+				if(!icp_executing)
+					save_back_origin_state();
+				icp_executing = true;
 				start_ICP();
 				return true;
 			}
@@ -702,6 +722,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 		{
 			switch (ke.get_key()) {
 			case 'I':
+				icp_executing = false;
 				display_unite_question();
 				return true;
 			}

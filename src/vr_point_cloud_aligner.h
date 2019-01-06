@@ -24,10 +24,11 @@ protected:
 	///Indicates, that a project file is loaded and the process is not finished yet
 	bool projectLoading_in_process;
 
-	///flag for the last icp process
-	bool icp_executed;
+	///flag for the icp is in process
+	bool icp_executing;
 	///Transformation of component that was affected by last icp
-	std::vector<Dir> latest_overwritten_transformation;
+	Dir latest_overwritten_translation;
+	cgv::math::quaternion<float> latest_overwritten_rotation;
 
 private:
 	std::vector<Box> room_boxes;
@@ -39,7 +40,9 @@ private:
 	int pickedComponent;
 	int previous_picked_component;
 	RGBA oldColor;
-	void generate_sample_boxes();
+
+	///safes origin state before icp execution
+	void save_back_origin_state();
 
 	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
 	void start_ICP();
