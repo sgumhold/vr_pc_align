@@ -15,6 +15,254 @@
 #define FILE_SAVE_TITLE "Tramsformation Projects"
 #define FILE_SAVE_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
 
+
+///Module 1 Startup methods
+
+///Constructor
+vr_point_cloud_aligner::vr_point_cloud_aligner()
+{
+	set_name("VR Point Cloud Aligner");
+
+	picked_box_extent = 0.1f;
+	picked_box_color = Clr(float_to_color_component(1.0f), 0, 0);
+	view_ptr = 0;
+	have_picked_point = false;
+	picked_point = Pnt(0, 0, 0);
+	last_view_point = Pnt(0, 0, 0);
+	have_view_ray = false;
+
+	generate_room_boxes();
+	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
+	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
+	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
+
+	pickedComponent = -1;
+	previous_picked_component = -1;
+	oldColor = RGBA(1, 1, 1, 1);
+	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
+	projectLoading_in_process = false;
+}
+
+///Setup for the working room
+void vr_point_cloud_aligner::generate_room_boxes()
+{
+	room_boxes.clear();
+	room_colors.clear();
+	Box room;
+	float x_room_min = 0, y_room_min = 0, z_room_min = -.2;
+	float lineCount = 20;
+	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
+	room.add_point(Pnt(Crd(5), Crd(5), Crd(0)));
+	room_boxes.push_back(room);
+	room_colors.push_back(generate_a_valid_color(3));
+
+	Box wall1;
+	wall1.add_point(Pnt(Crd(x_room_min - 0.2), Crd(y_room_min), Crd(z_room_min)));
+	wall1.add_point(Pnt(Crd(x_room_min), Crd(5), Crd(5)));
+	room_boxes.push_back(wall1);
+	room_colors.push_back(generate_a_valid_color(3));
+
+	//The table in the middle of the room
+	Box tableTop;
+	Box tableLeg1;
+	Box tableLeg2;
+	Box tableLeg3;
+	Box tableLeg4;
+
+	float tableTopCorner1 = 1.5, tableTopCorner2 = 3;
+	tableTop.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
+	tableTop.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.5)));
+	room_boxes.push_back(tableTop);
+	room_colors.push_back(generate_a_valid_color(1));
+
+	//Maybe instanciate the leg with different coordinates?
+	tableLeg1.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
+	tableLeg1.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + .2), Crd(0)));
+	room_boxes.push_back(tableLeg1);
+	room_colors.push_back(generate_a_valid_color(2));
+
+	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.3), Crd(tableTopCorner1), Crd(1.3)));
+	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.5), Crd(tableTopCorner1 + 0.2), Crd(0)));
+	room_boxes.push_back(tableLeg2);
+	room_colors.push_back(generate_a_valid_color(2));
+
+	tableLeg3.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1 + 1.3), Crd(1.3)));
+	tableLeg3.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + 1.5), Crd(0)));
+	room_boxes.push_back(tableLeg3);
+	room_colors.push_back(generate_a_valid_color(2));
+
+	tableLeg4.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.3)));
+	tableLeg4.add_point(Pnt(Crd(tableTopCorner2 - 0.2), Crd(tableTopCorner2 - .2), Crd(0)));
+	room_boxes.push_back(tableLeg4);
+	room_colors.push_back(generate_a_valid_color(2));
+
+	Box line;
+	line.add_point(Pnt(Crd(x_room_min), Crd(0), Crd(4)));
+	line.add_point(Pnt(Crd(x_room_min + .2), Crd(5), Crd(4.1)));
+	room_boxes.push_back(line);
+	room_colors.push_back(generate_a_valid_color(1));
+}
+
+std::string vr_point_cloud_aligner::get_type_name() const
+{
+	return "vr_point_cloud_aligner";
+}
+
+bool vr_point_cloud_aligner::self_reflect(cgv::reflect::reflection_handler& rh)
+{
+	return
+		//rh.reflect_member("sample_member_rows", sample_member_rows) &&
+		//rh.reflect_member("sample_member_cols", sample_member_cols) &&
+		point_cloud_interactable::self_reflect(rh);
+}
+void vr_point_cloud_aligner::stream_help(std::ostream& os)
+{
+	point_cloud_interactable::stream_help(os);
+
+	// stream out more help here or comment out call to point_cloud_interactable::stream_help and stream out all relevant help here
+	os << "   <R|Shift-R> increase|decrease nr rows, <C|Shift-C> increase|decrease nr cols" << std::endl;
+}
+void vr_point_cloud_aligner::stream_stats(std::ostream& os)
+{
+	point_cloud_interactable::stream_stats(os);
+
+	// stream out more statistics here or comment out call to point_cloud_interactable::stream_stats and stream out all relevant stats here
+	//os << "   rows x cols: " << sample_member_rows << " x " << sample_member_cols << std::endl;
+}
+
+
+bool vr_point_cloud_aligner::init(cgv::render::context& ctx)
+{
+	bool success = point_cloud_interactable::init(ctx);
+
+	// do your one time init (e.g. shader loading, texture creation, ...) here and update the success member
+
+	return success;
+
+}
+void vr_point_cloud_aligner::init_frame(cgv::render::context& ctx)
+{
+	point_cloud_interactable::init_frame(ctx);
+
+	// do your per frame initialization here
+}
+
+void vr_point_cloud_aligner::create_gui()
+{
+	// start with gui for based class
+	point_cloud_interactable::create_gui();
+
+	if (begin_tree_node("picking", have_picked_point, true, "level=3")) {
+		align("\a"); // increase identation
+		add_gui("position", picked_point, "options='active=false'");
+		add_member_control(this, "box extent", picked_box_extent, "value_slider", "min=0.0001;max=10;ticks=true;log=true");
+		add_member_control(this, "box color", picked_box_color);
+		align("\b"); // decrease identation
+		end_tree_node(room_boxes);
+	}
+
+	//GUI for saving Transformations from scans
+	if (begin_tree_node("Save transformations", true, true, "level=3")) {
+		align("\a");
+		add_gui("file_name", project_file, "file_name",
+			"w=130;"
+			"open=true;open_title='" FILE_OPEN_TITLE "';open_filter='" FILE_OPEN_FILTER "';"
+		);
+		add_gui("file_name", write_project_file, "file_name",
+			"w=130;"
+			"save=true;save_title='" FILE_SAVE_TITLE "';save_filter='" FILE_SAVE_FILTER "'"
+		);
+		align("\b");
+		end_tree_node(true);
+	}
+}
+
+///Module 2 Helper functions
+
+void vr_point_cloud_aligner::position_scans()
+{
+	// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
+	int nr = 0;
+	for (int a = 0; a < user_modified.size(); a++) {
+		if (user_modified.at(a)) {
+			nr++;
+		}
+	}
+	if (nr > 0)
+	{
+		for (int i = 0; i < pc.get_nr_components(); i++)
+		{
+			float x = 5.1 / nr;
+			if (!user_modified.at(i))
+			{
+				pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+				pc.component_rotation(i) = (defaultFacing);
+			}
+
+		}
+	}
+	else
+	{
+		reset_componets_transformations();
+	}
+}
+
+/// small helper function to get a valid color.
+point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
+{
+	double color_values[] =
+	{
+		1.0, 0.0, 0.5, // my red
+		1.0, 0.7, 0.5, // my yellow
+		0.5, 0.5, 0.5, // my grey
+		0.2, 0.2, 0.2 // dark grey
+	};
+	int idx = color - 1;
+	if (idx < 0)
+		idx = 0;
+	if (idx > 3)
+		idx = 3;
+	return Clr(
+		float_to_color_component(color_values[3 * idx]),
+		float_to_color_component(color_values[3 * idx + 1]),
+		float_to_color_component(color_values[3 * idx + 2])
+	);
+}
+
+void vr_point_cloud_aligner::display_unite_question()
+{
+	printf("Scans vereinigen?");
+	bool unite = false;
+	//IMPLEMENT GUI RESPONSES
+
+	int unitingPos = -1;
+	int otherPos = -1;
+	if (unite)
+	{
+		for (int a = 0; a < sets.size(); ++a) 
+		{
+			if (sets.at(a).find_component_ID(previous_picked_component)) 
+				unitingPos = a;
+			if (sets.at(a).find_component_ID(pickedComponent))
+				otherPos = a;
+
+			///set the colors equal
+			constructed_set temp = sets.at(otherPos);
+			std::vector<int> tempIDs = temp.get_component_IDs();
+			Clr tosetTo = pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
+			for (int b = 0; b < tempIDs.size(); ++b)
+			{
+				pc.component_color(tempIDs.at(b)) = tosetTo;
+			}
+			//now unite and delete
+			sets.at(unitingPos).unite(temp);
+			sets.erase(sets.begin() + otherPos);
+		}
+	}
+
+}
+
+
 void vr_point_cloud_aligner::start_ICP()
 {
 	if (pickedComponent < 0 || previous_picked_component < 0) {
@@ -24,7 +272,7 @@ void vr_point_cloud_aligner::start_ICP()
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source_copy;
 	component_info a  = pc.component_point_range(pickedComponent);
 	int p = 0;
-	//vertices , vertices_target;
+	//vertices , vertices_target; -> Downsampling integration here!
 	vertices_source.resize(Eigen::NoChange, a.nr_points);
 	vertices_source_copy.resize(Eigen::NoChange, a.nr_points);
 
@@ -56,18 +304,18 @@ void vr_point_cloud_aligner::start_ICP()
 	}
 	ICP::Parameters par;
 	par.p = .5;
-	par.max_icp = 100;
+	par.max_icp = 10;
 	ICP::point_to_point(vertices_source, vertices_target, par);
 	printf("ICP finished\n");
 	///Now the vertices_source is recalculated and overwritten. we now need to calculate back the actual rotation and translation.
 	///This should be now possible through using some points in the source cloud that have been transformed. Because of correspondencies there is now a closed solution form
 	///Using this method the first 4 points should be enough to solve this. The test case now uses all points.
 	Eigen::Affine3d A = kabsch::Find3DAffineTransform(vertices_source_copy, vertices_source);
-	for (int m = 0; m < 5; ++m) 
+	/*for (int m = 0; m < 5; ++m) 
 	{
 		printf("First 5 Points of ICP:\n");
 		printf("ICPresult %d: %f, %f, %f; Original: %f, %f, %f; Target: %f, %f, %f \n", m, vertices_source(0, m), vertices_source(1, m), vertices_source(2, m), vertices_source_copy(0, m), vertices_source_copy(1, m), vertices_source_copy(2, m), vertices_target(0, m), vertices_target(1, m), vertices_target(2, m));
-	}
+	}*/
 	Eigen::Vector3d translation_vec = A.translation();
 	cgv::math::mat<float> casted_mat;
 	casted_mat.resize(3, 3);
@@ -112,126 +360,6 @@ void vr_point_cloud_aligner::start_ICP()
 	
 }
 
-
-
-void vr_point_cloud_aligner::generate_room_boxes()
-{
-	room_boxes.clear();
-	room_colors.clear();
-	Box room;
-	float x_room_min= 0, y_room_min= 0, z_room_min= -.2;
-	float lineCount = 20; 
-	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
-	room.add_point(Pnt(Crd(5), Crd(5), Crd(0)));
-	room_boxes.push_back(room);
-	room_colors.push_back(generate_a_valid_color(3));
-
-	Box wall1;
-	wall1.add_point(Pnt(Crd(x_room_min - 0.2), Crd(y_room_min), Crd(z_room_min)));
-	wall1.add_point(Pnt(Crd(x_room_min), Crd(5), Crd(5)));
-	room_boxes.push_back(wall1);
-	room_colors.push_back(generate_a_valid_color(3));
-
-	//The table in the middle of the room
-	Box tableTop;
-	Box tableLeg1;
-	Box tableLeg2;
-	Box tableLeg3;
-	Box tableLeg4;
-
-	float tableTopCorner1 = 1.5, tableTopCorner2 = 3;
-	tableTop.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
-	tableTop.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.5)));
-	room_boxes.push_back(tableTop);
-	room_colors.push_back(generate_a_valid_color(1));
-	
-	//Maybe instanciate the leg with different coordinates?
-	tableLeg1.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
-	tableLeg1.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + .2), Crd(0)));
-	room_boxes.push_back(tableLeg1);
-	room_colors.push_back(generate_a_valid_color(2));
-
-	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.3), Crd(tableTopCorner1), Crd(1.3)));
-	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.5), Crd(tableTopCorner1 + 0.2), Crd(0)));
-	room_boxes.push_back(tableLeg2);
-	room_colors.push_back(generate_a_valid_color(2));
-
-	tableLeg3.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1 + 1.3), Crd(1.3)));
-	tableLeg3.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + 1.5), Crd(0)));
-	room_boxes.push_back(tableLeg3);
-	room_colors.push_back(generate_a_valid_color(2));
-
-	tableLeg4.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.3)));
-	tableLeg4.add_point(Pnt(Crd(tableTopCorner2 - 0.2), Crd(tableTopCorner2 - .2), Crd(0)));
-	room_boxes.push_back(tableLeg4);
-	room_colors.push_back(generate_a_valid_color(2));
-
-	Box line;
-	line.add_point(Pnt(Crd(x_room_min), Crd(0), Crd(4)));
-	line.add_point(Pnt(Crd(x_room_min + .2), Crd(5), Crd(4.1)));
-	room_boxes.push_back(line);
-	room_colors.push_back(generate_a_valid_color(1));
-}
-
-// small helper function to get a valid color. Not working as expected atm
-// 0 = black
-// 1 = red
-// 2 = orange
-// 3 = yellow
-// 4 = green
-// 5 = blue-green
-// 6 = blue
-// 7 = violett
-
-void vr_point_cloud_aligner::position_scans() 
-{
-	// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
-	int nr = 0;
-	for (int a = 0; a < user_modified.size(); a++) {
-		if (user_modified.at(a)) {
-			nr++;
-		}
-	}
-	if (nr > 0) 
-	{
-		for (int i = 0; i < pc.get_nr_components(); i++)
-		{
-			float x = 5.1 / nr;
-			if (!user_modified.at(i))
-			{
-				pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
-				pc.component_rotation(i) = (defaultFacing);
-			}
-
-		}
-	}
-	else 
-	{
-		reset_componets_transformations();
-	}
-}
-
-point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
-{
-	double color_values[] =
-	{
-		1.0, 0.0, 0.5, // my red
-		1.0, 0.7, 0.5, // my yellow
-		0.5, 0.5, 0.5, // my grey
-		0.2, 0.2, 0.2 // dark grey
-	};
-	int idx = color - 1;
-	if (idx < 0)
-		idx = 0;
-	if (idx > 3)
-		idx = 3;
-	return Clr( 
-		float_to_color_component(color_values[3*idx]), 
-		float_to_color_component(color_values[3*idx+1]), 
-		float_to_color_component(color_values[3*idx+2])
-	);
-}
-
 #include <cgv/base/find_action.h>
 
 bool vr_point_cloud_aligner::ensure_view_pointer()
@@ -248,74 +376,8 @@ bool vr_point_cloud_aligner::ensure_view_pointer()
 	return false;
 }
 
-vr_point_cloud_aligner::vr_point_cloud_aligner()
-{
-	set_name("VR Point Cloud Aligner");
-
-	picked_box_extent = 0.1f;
-	picked_box_color = Clr(float_to_color_component(1.0f), 0, 0);
-	view_ptr = 0;
-	have_picked_point = false;
-	picked_point = Pnt(0, 0, 0);
-	last_view_point = Pnt(0, 0, 0);
-	have_view_ray = false;
-
-	generate_room_boxes();
-	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
-	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
-	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
-
-	pickedComponent = -1;
-	previous_picked_component = -1;
-	oldColor = RGBA(1, 1, 1, 1);
-	defaultFacing = cgv::math::quaternion<float>(1,0,0,0);
-	projectLoading_in_process = false;
-}
 
 
-std::string vr_point_cloud_aligner::get_type_name() const
-{
-	return "vr_point_cloud_aligner";
-}
-
-bool vr_point_cloud_aligner::self_reflect(cgv::reflect::reflection_handler& rh)
-{
-	return 
-		//rh.reflect_member("sample_member_rows", sample_member_rows) &&
-		//rh.reflect_member("sample_member_cols", sample_member_cols) &&
-		point_cloud_interactable::self_reflect(rh);
-}
-void vr_point_cloud_aligner::stream_help(std::ostream& os)
-{
-	point_cloud_interactable::stream_help(os);
-
-	// stream out more help here or comment out call to point_cloud_interactable::stream_help and stream out all relevant help here
-	os << "   <R|Shift-R> increase|decrease nr rows, <C|Shift-C> increase|decrease nr cols" << std::endl;
-}
-void vr_point_cloud_aligner::stream_stats(std::ostream& os)
-{
-	point_cloud_interactable::stream_stats(os);
-
-	// stream out more statistics here or comment out call to point_cloud_interactable::stream_stats and stream out all relevant stats here
-	//os << "   rows x cols: " << sample_member_rows << " x " << sample_member_cols << std::endl;
-}
-
-
-bool vr_point_cloud_aligner::init(cgv::render::context& ctx)
-{
-	bool success = point_cloud_interactable::init(ctx);
-
-	// do your one time init (e.g. shader loading, texture creation, ...) here and update the success member
-
-	return success;
-
-}
-void vr_point_cloud_aligner::init_frame(cgv::render::context& ctx)
-{
-	point_cloud_interactable::init_frame(ctx);
-
-	// do your per frame initialization here
-}
 void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 {
 	// store current transformation matrix from world to device coordinates
@@ -547,7 +609,8 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 
 void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 {
-	std::ofstream outFile;
+	std::ofstream outFile; 
+
 	outFile.open(projectFile);
 	if (0 == pc.get_nr_components()) {
 		printf("Keine Komponenten zum speichern!");
@@ -632,6 +695,14 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				return true;
 			case 'I':
 				start_ICP();
+				return true;
+			}
+		}
+		else if (ke.get_action() == cgv::gui::KA_RELEASE) 
+		{
+			switch (ke.get_key()) {
+			case 'I':
+				display_unite_question();
 				return true;
 			}
 		}
@@ -780,35 +851,7 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	// always call base class implementation to post_redraw and update_member in gui
 	point_cloud_interactable::on_set(member_ptr);
 }
-void vr_point_cloud_aligner::create_gui()
-{
-	// start with gui for based class
-	point_cloud_interactable::create_gui();
 
-	if (begin_tree_node("picking", have_picked_point, true, "level=3")) {
-		align("\a"); // increase identation
-		add_gui("position", picked_point, "options='active=false'");
-		add_member_control(this, "box extent", picked_box_extent, "value_slider", "min=0.0001;max=10;ticks=true;log=true");
-		add_member_control(this, "box color", picked_box_color);
-		align("\b"); // decrease identation
-		end_tree_node(room_boxes);
-	}
-
-	//GUI for saving Transformations from scans
-	if (begin_tree_node("Save transformations", true, true, "level=3")) {
-		align("\a");
-		add_gui("file_name", project_file, "file_name",
-			"w=130;"
-			"open=true;open_title='" FILE_OPEN_TITLE "';open_filter='" FILE_OPEN_FILTER "';"
-		);
-		add_gui("file_name", write_project_file, "file_name",
-			"w=130;"
-			"save=true;save_title='" FILE_SAVE_TITLE "';save_filter='" FILE_SAVE_FILTER "'"
-		);
-		align("\b");
-		end_tree_node(true);
-	}
-}
 
 #include <cgv/base/register.h>
 

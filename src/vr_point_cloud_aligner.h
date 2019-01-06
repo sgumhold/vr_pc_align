@@ -82,6 +82,8 @@ private:
 	void position_scans();
 	//Helper function
 	Clr generate_a_valid_color(int color);
+	///GUI for uniting components
+	void display_unite_question();
 
 protected:
 	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
