@@ -7,17 +7,15 @@
 class interval
 {
 public:
-	interval(double a, double b);
+	interval(float a, float b);
 	~interval();
 	interval intersectIntervals(interval other);
-	double get_min();
-	double get_max();
-	bool isNullInterval();
+	float get_min();
+	float get_max();
 	bool isInvalid();
-	void setInvalid();
 private:
-	double min;
-	double max;
+	float min;
+	float max;
 	bool invalid;
 
 };

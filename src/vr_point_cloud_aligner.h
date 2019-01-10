@@ -135,8 +135,8 @@ public:
 	void init_frame(cgv::render::context& ctx);
 	/// main rendering method
 	void draw(cgv::render::context& ctx);
-	Pnt box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box);
-	Crd box_ray_intersection(const Pnt & ray_start, const Dir & ray_dir, const Box & box, const Dir & box_translationm, const Qat & box_rotation);
+	point_cloud_types::Pnt box_ray_intersection(const Pnt & ray_start, const Pnt & ray_dir, const Box & box);
+	point_cloud_types::Crd box_ray_intersection(const Pnt & ray_start, const Pnt & ray_dir, const Box & box, const Dir & box_translation, const Qat & box_rotation);
 
 	/// loads given Transformations and flags from File
 	void load_project_file(std::string projectFile);
@@ -146,10 +146,10 @@ public:
 	bool transformation_lock;
 
 	/// transforms a rotation and translation from global to local coordinates of a given Point
-	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Dir & local_translation, const Qat & local_rotation);
+	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Pnt & local_translation, const Qat & local_rotation);
 	
 	//@}
-	interval calculate_intersectionintervall(double rayStart,double maxBoxCoord1, double maxBoxCoord2, double raydir);
+	interval calculate_intersectionintervall(float rayStart, float maxBoxCoord1, float maxBoxCoord2, float raydir);
 
 	/**@name user interface */
 	//@{

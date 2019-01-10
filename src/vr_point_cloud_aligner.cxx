@@ -421,7 +421,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 		}
 
 		int toPrint = intersectedPoints.size();
-		printf("%d", toPrint);
+		printf("%d \n", toPrint);
 		if (intersectedPoints.size() != 0) 
 		{
 			Dir ray_dir = picked_point - last_view_point;
@@ -439,14 +439,14 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 
 			if (a == pickedComponent && pickedComponent != -1) 
 			{
-				printf("deselected scan");
+				printf("deselected scan\n");
 				pc.component_color(pickedComponent) = oldColor;
 				previous_picked_component = -1;
 				pickedComponent = -1;
 			}
 			else if (a >= 0)
 			{
-				printf("Picked a scan");
+				printf("Picked a scan\n");
 				if(pickedComponent > 0)
 					pc.component_color(pickedComponent) = oldColor;
 				previous_picked_component = pickedComponent;
@@ -480,20 +480,22 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	b_renderer.disable(ctx);
 }
 
-
-point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Dir& ray_dir, const Box& box)
+point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_dir, const Box& box)
 {
 	//Boxes are axis aligned defined by 2 coordinates. This means one can use the techniques of ECG raytracing slides s22
 	//Calculate for each axis its intersection intervall. Then intersect all intervalls to get the target intervall and its parameters
 	interval xintersection = calculate_intersectionintervall(ray_start.x(), box.get_min_pnt().x(), box.get_max_pnt().x(), ray_dir.x());
+	printf("Local xIntersection %f %f\n", xintersection.get_min(), xintersection.get_max());
 	interval yintersection = calculate_intersectionintervall(ray_start.y(), box.get_min_pnt().y(), box.get_max_pnt().y(), ray_dir.y());
+	printf("Local yIntersection %f %f\n", yintersection.get_min(), yintersection.get_max());
 	interval zintersection = calculate_intersectionintervall(ray_start.z(), box.get_min_pnt().z(), box.get_max_pnt().z(), ray_dir.z());
+	printf("Local zIntersection %f %f\n", zintersection.get_min(), zintersection.get_max());
 	if (xintersection.isInvalid() || yintersection.isInvalid() || zintersection.isInvalid())
 	{
 		return Pnt(-1000,-1000,-1000);
 	}
-	interval solution = xintersection.intersectIntervals(yintersection).intersectIntervals(zintersection);
-	if (solution.isInvalid() || solution.isNullInterval()) {
+	interval solution = (xintersection.intersectIntervals(yintersection)).intersectIntervals(zintersection);
+	if (solution.isInvalid()) {
 		return Pnt(-1000, -1000, -1000);
 	}
 	//I am not certain about this solution, somehow there should be a number € Tq that is the solution. Anyway the minimum should not be that far away from the solution
@@ -505,13 +507,20 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 {
 	//Implementation plan: apply inverse transformations to rays to transform them to the local coordinate system of the box. Calculate intersection there, then transfrom back to global
 	Pnt local_ray_start = transform_to_local(ray_start,box_translation,box_rotation);
-	Dir local_ray_direction = transform_to_local(ray_end, box_translation, box_rotation) - local_ray_start;
+	Pnt local_ray_direction = transform_to_local(ray_end, box_translation, box_rotation) - local_ray_start;
 	Pnt local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
 	//There is no intersection
 	if(local_result == Pnt(-1000, -1000, -1000))
 		return Crd(-1000);
+	printf("Intersection, local Coordinates: %f %f %f\n", local_result.x(), local_result.y(), local_result.z());
 	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
-	Pnt global_intersection_point = box_rotation.apply( local_intersection_point) + box_translation;
+	Pnt global_intersection_point = box_translation + box_rotation.apply( local_intersection_point);
+	printf("Intersection, global Coordinates: %f %f %f \n", global_intersection_point.x(), global_intersection_point.y(), global_intersection_point.z());
+	Pnt degub_box_min__pnt = box_translation + box_rotation.apply(box.get_min_pnt());
+	Pnt degub_box_max__pnt = box_translation + box_rotation.apply(box.get_max_pnt());
+	printf("AABB min: %f %f %f \n", degub_box_min__pnt.x(), degub_box_min__pnt.y(), degub_box_min__pnt.z());
+	printf("AABB max: %f %f %f \n", degub_box_max__pnt.x(), degub_box_max__pnt.y(), degub_box_max__pnt.z());
+
 	Dir ray_dir = ray_end - ray_start;
 	Crd global_result = ((global_intersection_point.x() - ray_start.x()) / ray_dir.x());
 	return global_result;
@@ -651,21 +660,21 @@ point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in,
 	return result;
 }
 
-interval vr_point_cloud_aligner::calculate_intersectionintervall(double rayStart, double maxBoxCoord1,double maxBoxCoord2,double raydir)
+interval vr_point_cloud_aligner::calculate_intersectionintervall(float rayStart, float maxBoxCoord1, float maxBoxCoord2, float raydir)
 {
 	//X0 = px + t* x vx
 	//First we need the parameter vx especially its sign and if its bigger 0
 	// vx = abl(x)/abl(t) = vx
-	double px = rayStart;
-	double x0 = maxBoxCoord1;
-	double x1 = maxBoxCoord2;
+	float px = rayStart;
+	float x0 = maxBoxCoord1;
+	float x1 = maxBoxCoord2;
 	//delta x / delta t is the same as ray_dir (1 step of it)
-	double vx = raydir;
-	double t0 = 0, t1 = 0;
+	float vx = raydir;
+	float t0 = 0, t1 = 0;
 	if (vx == 0)
 	{
 		// Does not interesect the given axis of the box -> no intersection
-		interval a(1,0);
+		interval a(1.0,0.0);
 		return a;
 	}
 	else if (vx > 0)
