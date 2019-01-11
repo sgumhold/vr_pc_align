@@ -1,6 +1,7 @@
 #include "vr_point_cloud_aligner.h"
 #include <cgv/base/register.h>
 #include <cgv/gui/key_event.h>
+#include <cgv/gui/trigger.h>
 #include <cgv/gui/mouse_event.h>
 #include "../sparseicp/ICP.h"
 #include "kabsch.h"
@@ -44,6 +45,14 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	oldColor = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
 	projectLoading_in_process = false;
+	connect(cgv::gui::get_animation_trigger().shoot, this, &vr_point_cloud_aligner::timer_event);
+}
+
+void vr_point_cloud_aligner::timer_event(double t, double dt)
+{
+	if (icp_executing) {
+		start_ICP();
+	}
 }
 
 ///Setup for the working room
@@ -413,7 +422,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 		for (int i = 0; i < pc.get_nr_components(); i++)
 		{
 			Crd temp = box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i));
-			if (temp != Crd(-1000))
+			if (temp > 0)
 			{
 				intersectedPoints.push_back(temp);
 				component_NR.push_back(i);
@@ -480,7 +489,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	b_renderer.disable(ctx);
 }
 
-point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_dir, const Box& box)
+bool vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_dir, const Box& box, point_cloud_types::Pnt& result)
 {
 	//Boxes are axis aligned defined by 2 coordinates. This means one can use the techniques of ECG raytracing slides s22
 	//Calculate for each axis its intersection intervall. Then intersect all intervalls to get the target intervall and its parameters
@@ -492,15 +501,15 @@ point_cloud_types::Pnt vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	printf("Local zIntersection %f %f\n", zintersection.get_min(), zintersection.get_max());
 	if (xintersection.isInvalid() || yintersection.isInvalid() || zintersection.isInvalid())
 	{
-		return Pnt(-1000,-1000,-1000);
+		return false;
 	}
 	interval solution = (xintersection.intersectIntervals(yintersection)).intersectIntervals(zintersection);
 	if (solution.isInvalid()) {
-		return Pnt(-1000, -1000, -1000);
+		return false;
 	}
 	//I am not certain about this solution, somehow there should be a number € Tq that is the solution. Anyway the minimum should not be that far away from the solution
-	Pnt result = ray_start + ray_dir * solution.get_min();
-	return result;
+	result = ray_start + ray_dir * solution.get_min();
+	return true;
 }
 
 point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_end, const Box& box, const Dir& box_translation, const Qat& box_rotation)
@@ -508,10 +517,9 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	//Implementation plan: apply inverse transformations to rays to transform them to the local coordinate system of the box. Calculate intersection there, then transfrom back to global
 	Pnt local_ray_start = transform_to_local(ray_start,box_translation,box_rotation);
 	Pnt local_ray_direction = transform_to_local(ray_end, box_translation, box_rotation) - local_ray_start;
-	Pnt local_result = box_ray_intersection(local_ray_start, local_ray_direction, box);
-	//There is no intersection
-	if(local_result == Pnt(-1000, -1000, -1000))
-		return Crd(-1000);
+	Pnt local_result;
+	if (!box_ray_intersection(local_ray_start, local_ray_direction, box, local_result))
+		return -1;
 	printf("Intersection, local Coordinates: %f %f %f\n", local_result.x(), local_result.y(), local_result.z());
 	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
 	Pnt global_intersection_point = box_translation + box_rotation.apply( local_intersection_point);
@@ -655,7 +663,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 
 point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Pnt& local_translation, const Qat& local_rotation)
 {
-	Pnt result = Pnt((in - local_translation));
+	Pnt result = in - local_translation;
 	local_rotation.inverse_rotate(result);
 	return result;
 }

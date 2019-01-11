@@ -112,10 +112,12 @@ protected:
 	/// write access to component color
 	RGBA& comp_color(Idx ci) { return pc.component_color(ci); }
 	//@}	
-
 public:
 	/// construct viewer with default configuration
 	vr_point_cloud_aligner();
+
+
+	void timer_event(double t, double dt);
 
 	//**@name self reflection of class */
 	//@{
@@ -135,7 +137,7 @@ public:
 	void init_frame(cgv::render::context& ctx);
 	/// main rendering method
 	void draw(cgv::render::context& ctx);
-	point_cloud_types::Pnt box_ray_intersection(const Pnt & ray_start, const Pnt & ray_dir, const Box & box);
+	bool box_ray_intersection(const Pnt & ray_start, const Pnt & ray_dir, const Box & box, Pnt& result);
 	point_cloud_types::Crd box_ray_intersection(const Pnt & ray_start, const Pnt & ray_dir, const Box & box, const Dir & box_translation, const Qat & box_rotation);
 
 	/// loads given Transformations and flags from File
