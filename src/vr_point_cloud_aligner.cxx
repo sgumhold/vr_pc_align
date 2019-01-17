@@ -18,7 +18,7 @@
 #define FILE_SAVE_TITLE "Tramsformation Projects"
 #define FILE_SAVE_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
 
-
+#define EMPTY_CONSTRUCTED_SET constructed_set(std::vector<int>(), -1)
 ///Module 1 Startup methods
 
 ///Constructor
@@ -34,14 +34,15 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	last_view_point = Pnt(0, 0, 0);
 	have_view_ray = false;
 	icp_executing = false;
+	pending_unite = false;
+	picked_group = EMPTY_CONSTRUCTED_SET;
+	previous_picked_group = EMPTY_CONSTRUCTED_SET;
 
 	generate_room_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
 	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
 
-	pickedComponent = -1;
-	previous_picked_component = -1;
 	oldColor = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
 	projectLoading_in_process = false;
@@ -52,6 +53,9 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 {
 	if (icp_executing) {
 		start_ICP();
+	}
+	if (pending_unite) {
+		display_unite_question();
 	}
 }
 
@@ -247,29 +251,36 @@ void vr_point_cloud_aligner::display_unite_question()
 	bool unite = false;
 	//IMPLEMENT GUI RESPONSES
 
+
+
+}
+
+void vr_point_cloud_aligner::unite(bool unite) 
+{
 	int unitingPos = -1;
 	int otherPos = -1;
 	if (unite)
 	{
-		for (int a = 0; a < sets.size(); ++a) 
+		for (int a = 0; a < sets.size(); ++a)
 		{
-			if (sets.at(a).find_component_ID(previous_picked_component)) 
+			if (sets.at(a).get_ID() == previous_picked_group.get_ID())
 				unitingPos = a;
-			if (sets.at(a).find_component_ID(pickedComponent))
+			if (sets.at(a).get_ID() == picked_group.get_ID())
 				otherPos = a;
-
-			///set the colors equal
-			constructed_set temp = sets.at(otherPos);
-			std::vector<int> tempIDs = temp.get_component_IDs();
-			Clr tosetTo = pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
-			for (int b = 0; b < tempIDs.size(); ++b)
-			{
-				pc.component_color(tempIDs.at(b)) = tosetTo;
-			}
-			//now unite and delete
-			sets.at(unitingPos).unite(temp);
-			sets.erase(sets.begin() + otherPos);
 		}
+
+		///set the colors equal
+		constructed_set temp = sets.at(otherPos);
+		std::vector<int> tempIDs = temp.get_component_IDs();
+		Clr tosetTo = pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
+		for (int b = 0; b < tempIDs.size(); ++b)
+		{
+			pc.component_color(tempIDs.at(b)) = tosetTo;
+		}
+		//now unite and delete
+		sets.at(unitingPos).unite(temp);
+		sets.erase(sets.begin() + otherPos);
+		
 	}
 	/// if not reset to old state
 	else
@@ -278,13 +289,11 @@ void vr_point_cloud_aligner::display_unite_question()
 		pc.component_rotation(pickedComponent) = latest_overwritten_rotation;
 		post_redraw();
 	}
-
 }
-
 
 void vr_point_cloud_aligner::save_back_origin_state()
 {
-	if (pickedComponent < 0 || previous_picked_component < 0)
+	if (picked_group.get_ID() < 0 || previous_picked_group.get_ID() < 0)
 			return;
 	latest_overwritten_translation = pc.component_translation(pickedComponent);
 	latest_overwritten_rotation = pc.component_rotation(pickedComponent);
@@ -292,9 +301,11 @@ void vr_point_cloud_aligner::save_back_origin_state()
 
 void vr_point_cloud_aligner::start_ICP()
 {
-	if (pickedComponent < 0 || previous_picked_component < 0) {
+	///UNDER MAINTENANCE NOT WORKING RIGHT NOW
+	if (true) {
 		return;
 	}
+	/*
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source_copy;
 	component_info a  = pc.component_point_range(pickedComponent);
@@ -342,7 +353,7 @@ void vr_point_cloud_aligner::start_ICP()
 	{
 		printf("First 5 Points of ICP:\n");
 		printf("ICPresult %d: %f, %f, %f; Original: %f, %f, %f; Target: %f, %f, %f \n", m, vertices_source(0, m), vertices_source(1, m), vertices_source(2, m), vertices_source_copy(0, m), vertices_source_copy(1, m), vertices_source_copy(2, m), vertices_target(0, m), vertices_target(1, m), vertices_target(2, m));
-	}*/
+	}
 	Eigen::Vector3d translation_vec = A.translation();
 	cgv::math::mat<float> casted_mat;
 	casted_mat.resize(3, 3);
@@ -383,7 +394,7 @@ void vr_point_cloud_aligner::start_ICP()
 	pc.component_translation(pickedComponent).set(translation_vec.x(),translation_vec.y(),translation_vec.z());
 	pc.component_rotation(pickedComponent).set(qw,qx,qy,qz);
 	post_redraw();
-
+	*/
 	
 }
 
@@ -433,6 +444,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 		printf("%d \n", toPrint);
 		if (intersectedPoints.size() != 0) 
 		{
+
 			Dir ray_dir = picked_point - last_view_point;
 			float z_factor_min = 1000.0f;
 			int min_component = -1;
@@ -446,6 +458,53 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 			}
 			int a = component_NR.at(min_component);
 
+			constructed_set new_pick;
+			//Search for possible picked groups
+			for (int s = 0; s < sets.size(); ++s)
+			{
+				if (sets.at(s).find_component_ID(a))
+				{
+					new_pick = sets.at(s);
+				}
+			}
+			if (new_pick.get_ID() == picked_group.get_ID() && new_pick.get_ID() != -1)
+			{
+				printf("deselected group\n");
+				std::vector<int> toChange = new_pick.get_component_IDs();
+				for (int x = 0; x < toChange.size(); ++x)
+				{
+					pc.component_color(toChange.at(x)) = oldColor;
+				}
+				picked_group = EMPTY_CONSTRUCTED_SET;
+				previous_picked_group = EMPTY_CONSTRUCTED_SET;
+			}
+			else if (new_pick.get_ID() >= 0)
+			{
+				printf("Picked a group\n");
+				//reset colors of old group
+				if(picked_group.get_ID() > 0) 
+				{
+					std::vector<int> toChange = picked_group.get_component_IDs();
+					for (int x = 0; x < toChange.size(); ++x)
+					{
+						pc.component_color(toChange.at(x)) = oldColor;
+					}
+				}
+				//set picked to previous picked
+				previous_picked_group = picked_group;
+				//Save back old color
+				oldColor = pc.component_color(a);
+				//change active group to red
+				std::vector<int> toChange = new_pick.get_component_IDs();
+				for (int x = 0; x < toChange.size(); ++x)
+				{
+					pc.component_color(toChange.at(x)) = RGBA(1, 0, 0, 1);
+				}
+				//Save pick
+				picked_group = new_pick;
+			}
+
+			/*
 			if (a == pickedComponent && pickedComponent != -1) 
 			{
 				printf("deselected scan\n");
@@ -463,7 +522,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 				oldColor = pc.component_color(a);
 				pc.component_color(a) = RGBA(1, 0, 0, 1);
 				pickedComponent = a;
-			}
+			}*/
 			post_redraw();
 		}
 
@@ -732,6 +791,17 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					save_back_origin_state();
 				icp_executing = true;
 				return true;
+			case 'C':
+				if (pending_unite) {
+					unite(false);
+					pending_unite = false;
+				}
+				return true;			
+			case 'U':
+				if (pending_unite) {
+					unite(true);
+					pending_unite = false;
+				}
 			}
 		}
 		else if (ke.get_action() == cgv::gui::KA_RELEASE) 
@@ -739,7 +809,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 			switch (ke.get_key()) {
 			case 'I':
 				icp_executing = false;
-				display_unite_question();
+				pending_unite = true;
 				return true;
 			}
 		}
@@ -782,6 +852,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						else
 							vec = (last_target_point - last_view_point) * 0.1;
 
+						//implement same feature for whole group
 						vec += pc.component_translation(pickedComponent);
 						pc.component_translation(pickedComponent).set(vec.x(),vec.y(),vec.z());
 						return true;

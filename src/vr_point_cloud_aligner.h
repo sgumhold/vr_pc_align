@@ -36,10 +36,16 @@ private:
 	std::vector<Clr> room_colors;
 	std::vector<bool> user_modified;
 	std::vector<std::string> file_paths;
+	//std::vector
 	cgv::render::surface_render_style box_render_style;
-	int pickedComponent;
-	int previous_picked_component;
 	RGBA oldColor;
+
+	///This flag is to disable the auto tracker
+	bool tracker_disabled;
+	///This shows the group the picked component belongs to, thus applieng all transformations to the group
+	constructed_set picked_group;
+	///This is the same as previous picked component
+	constructed_set previous_picked_group;
 
 	///safes origin state before icp execution
 	void save_back_origin_state();
@@ -79,6 +85,9 @@ private:
 	///ProjectFilepath write access
 	std::string write_project_file;
 
+	///Simple flag to show the user a pending unite
+	bool pending_unite;
+
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
 	//aligns not user modified scans along the line
@@ -87,6 +96,8 @@ private:
 	Clr generate_a_valid_color(int color);
 	///GUI for uniting components
 	void display_unite_question();
+	///The actual uniting function
+	void unite(bool unite);
 
 protected:
 	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
