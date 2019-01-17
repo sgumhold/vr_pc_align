@@ -579,7 +579,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			pc.create_component_colors();
 			pc.component_translation(0).set(x, y, z);
 			pc.component_rotation(0).set(re, xi, yi, zi);
-			pc.component_color(0) = RGBA(1,0,0,1);
+			pc.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()) / float(10), 0.5f, 1.0f, 1.0f);
 			user_modified.push_back(isUserModified);
 			file_paths.push_back(fileName);
 			transformation_lock = false;
@@ -656,7 +656,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 			if (sets.at(c).find_component_ID(i))
 				alignmentID = sets.at(c).get_ID();
 		}
-		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << sets.at(alignmentID).get_ID() <<'\n';
+		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << ' ' << sets.at(alignmentID).get_ID() <<'\n';
 	}
 	outFile.close();
 }
@@ -731,7 +731,6 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				if(!icp_executing)
 					save_back_origin_state();
 				icp_executing = true;
-				start_ICP();
 				return true;
 			}
 		}
@@ -811,8 +810,11 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 		position_scans();
 		
 		transformation_lock = false;
+
 		//The newest added component is pushed back as a new single unit set
-		sets.push_back(constructed_set(std::vector<int>(pc.get_nr_components() - 1), sets.size()));
+		std::vector<int> a;
+		a.push_back(pc.get_nr_components() - 1);
+		sets.push_back(constructed_set(a, sets.size()));
 	}
 	if (pcc_event == PCC_NEW_POINT_CLOUD && !projectLoading_in_process)
 	{
@@ -833,6 +835,10 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 				}
 				handle = cgv::utils::file::find_next(handle);
 			}
+			//The newest added component is pushed back as a new single unit set Warning: Components may not exist yet
+			std::vector<int> a;
+			a.push_back(pc.get_nr_components());
+			sets.push_back(constructed_set(a, sets.size()));
 
 		}
 	}
