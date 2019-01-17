@@ -521,8 +521,8 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	if (!box_ray_intersection(local_ray_start, local_ray_direction, box, local_result))
 		return -1;
 	printf("Intersection, local Coordinates: %f %f %f\n", local_result.x(), local_result.y(), local_result.z());
-	Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
-	Pnt global_intersection_point = box_translation + box_rotation.apply( local_intersection_point);
+	//Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
+	Pnt global_intersection_point = box_translation + box_rotation.apply(local_result);
 	printf("Intersection, global Coordinates: %f %f %f \n", global_intersection_point.x(), global_intersection_point.y(), global_intersection_point.z());
 	Pnt degub_box_min__pnt = box_translation + box_rotation.apply(box.get_min_pnt());
 	Pnt degub_box_max__pnt = box_translation + box_rotation.apply(box.get_max_pnt());

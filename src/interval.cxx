@@ -18,6 +18,11 @@ interval::interval(float a, float b)
 
 interval interval::intersectIntervals(interval other) 
 {
+	if (this->isInvalid() || other.isInvalid()) 
+	{
+		interval a = interval(float(1.0), float(0.0));
+		return a;
+	}
 	if (cgv::math::maximum(min, other.get_min()) > cgv::math::minimum(max,other.get_max()))
 	{
 		interval a = interval(float(1.0),float(0.0));
