@@ -28,9 +28,6 @@ protected:
 
 	///flag for the icp is in process
 	bool icp_executing;
-	///Transformation of component that was affected by last icp
-	Dir latest_overwritten_translation;
-	cgv::math::quaternion<float> latest_overwritten_rotation;
 
 private:
 	std::vector<Box> room_boxes;
@@ -39,12 +36,11 @@ private:
 	std::vector<bool> user_modified;
 	std::vector<std::string> file_paths;
 	std::vector<program_state> program_state_stack;
+	int pss_count;
 
 	cgv::render::surface_render_style box_render_style;
 	RGBA oldColor;
 
-	///This flag is to disable the auto tracker
-	bool tracker_disabled;
 	///This shows the group the picked component belongs to, thus applieng all transformations to the group
 	constructed_set picked_group;
 	///This is the same as previous picked component
@@ -52,6 +48,8 @@ private:
 
 	///safes latest programstackstate
 	void save_back_state();
+	///restores programstaskstate at point i
+	void restore_state(int i);
 
 	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
 	void start_ICP();

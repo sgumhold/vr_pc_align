@@ -38,6 +38,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	picked_group = EMPTY_CONSTRUCTED_SET;
 	previous_picked_group = EMPTY_CONSTRUCTED_SET;
 	program_state_stack = std::vector<program_state>();
+	pss_count = 0;
 
 	generate_room_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
@@ -281,22 +282,44 @@ void vr_point_cloud_aligner::unite(bool unite)
 		//now unite and delete
 		sets.at(unitingPos).unite(temp);
 		sets.erase(sets.begin() + otherPos);
-		
+		save_back_state();
 	}
-	/// if not reset to old state
+	// if not reset to old state
 	else
 	{
-		pc.component_translation(pickedComponent) = latest_overwritten_translation;
-		pc.component_rotation(pickedComponent) = latest_overwritten_rotation;
+		//Strg + z
+		restore_state(pss_count - 1);
 		post_redraw();
 	}
 }
 
 void vr_point_cloud_aligner::save_back_state()
 {
-	///TO IMPLEMENT
+	if (pss_count < program_state_stack.size() - 1)
+	{
+		program_state_stack.erase(program_state_stack.begin() + pss_count, program_state_stack.end());
+	}
+	std::vector<Dir> translations;
+	std::vector<Qat> rotations;
+	for (int i = 0; i < pc.get_nr_components(); ++i) 
+	{
+		translations.push_back(pc.component_translation(i));
+		rotations.push_back(pc.component_rotation(i));
+	}
+	program_state state = program_state(translations, rotations, picked_group, previous_picked_group, sets);
+	program_state_stack.push_back(state);
+	pss_count++;
 
-	///UNDER MAINTENANCE NOT WORKING RIGHT NOW
+}
+
+void vr_point_cloud_aligner::restore_state(int i)
+{
+	if(i > program_state_stack.size()-1)
+	{
+		printf("Wiederherstellen nicht möglich, keine Aktionen wurden weiter ausgeführt als diese!\n");
+	}
+	program_state_stack.at(i).pop_back_latest_state(pc, picked_group, previous_picked_group, sets);
+	pss_count = i;
 }
 
 void vr_point_cloud_aligner::start_ICP()
@@ -502,27 +525,8 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 				}
 				//Save pick
 				picked_group = new_pick;
+				save_back_state();
 			}
-
-			/*
-			if (a == pickedComponent && pickedComponent != -1) 
-			{
-				printf("deselected scan\n");
-				pc.component_color(pickedComponent) = oldColor;
-				previous_picked_component = -1;
-				pickedComponent = -1;
-			}
-			else if (a >= 0)
-			{
-				printf("Picked a scan\n");
-				if(pickedComponent > 0)
-					pc.component_color(pickedComponent) = oldColor;
-				previous_picked_component = pickedComponent;
-				//Change color of box
-				oldColor = pc.component_color(a);
-				pc.component_color(a) = RGBA(1, 0, 0, 1);
-				pickedComponent = a;
-			}*/
 			post_redraw();
 		}
 
@@ -844,7 +848,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 			case cgv::gui::MA_WHEEL:
 				if (me.get_button_state() == cgv::gui::MB_RIGHT_BUTTON)
 				{
-					if (pickedComponent > -1) 
+					if (picked_group.get_ID() > -1) 
 					{
 						Dir vec;// = last_target_point - last_view_point;
 						if (me.get_dy() > 0)
@@ -852,9 +856,12 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						else
 							vec = (last_target_point - last_view_point) * 0.1;
 
-						//implement same feature for whole group
-						vec += pc.component_translation(pickedComponent);
-						pc.component_translation(pickedComponent).set(vec.x(),vec.y(),vec.z());
+						std::vector<int> temp_ids = picked_group.get_component_IDs();
+						for (int i = 0; i < temp_ids.size(); ++i) {
+							vec += pc.component_translation(temp_ids.at(i));
+							pc.component_translation(temp_ids.at(i)).set(vec.x(), vec.y(), vec.z());
+						}						
+						save_back_state();
 						return true;
 					}
 				}
