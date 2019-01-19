@@ -7,6 +7,8 @@
 #include <cgv/gui/file_dialog.h>
 #include "interval.h"
 #include "constructed_set.h"
+#include "program_state.h"
+
 #include "lib_begin.h"
 
 
@@ -36,7 +38,8 @@ private:
 	std::vector<Clr> room_colors;
 	std::vector<bool> user_modified;
 	std::vector<std::string> file_paths;
-	//std::vector
+	std::vector<program_state> program_state_stack;
+
 	cgv::render::surface_render_style box_render_style;
 	RGBA oldColor;
 
@@ -47,8 +50,8 @@ private:
 	///This is the same as previous picked component
 	constructed_set previous_picked_group;
 
-	///safes origin state before icp execution
-	void save_back_origin_state();
+	///safes latest programstackstate
+	void save_back_state();
 
 	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
 	void start_ICP();

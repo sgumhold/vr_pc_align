@@ -37,6 +37,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	pending_unite = false;
 	picked_group = EMPTY_CONSTRUCTED_SET;
 	previous_picked_group = EMPTY_CONSTRUCTED_SET;
+	program_state_stack = std::vector<program_state>();
 
 	generate_room_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
@@ -291,12 +292,11 @@ void vr_point_cloud_aligner::unite(bool unite)
 	}
 }
 
-void vr_point_cloud_aligner::save_back_origin_state()
+void vr_point_cloud_aligner::save_back_state()
 {
-	if (picked_group.get_ID() < 0 || previous_picked_group.get_ID() < 0)
-			return;
-	latest_overwritten_translation = pc.component_translation(pickedComponent);
-	latest_overwritten_rotation = pc.component_rotation(pickedComponent);
+	///TO IMPLEMENT
+
+	///UNDER MAINTENANCE NOT WORKING RIGHT NOW
 }
 
 void vr_point_cloud_aligner::start_ICP()
@@ -788,7 +788,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				return true;
 			case 'I':
 				if(!icp_executing)
-					save_back_origin_state();
+					save_back_state();
 				icp_executing = true;
 				return true;
 			case 'C':
