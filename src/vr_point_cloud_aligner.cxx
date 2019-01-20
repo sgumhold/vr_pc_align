@@ -250,7 +250,7 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 void vr_point_cloud_aligner::display_unite_question()
 {
 	printf("Scans vereinigen?");
-	bool unite = false;
+	
 	//IMPLEMENT GUI RESPONSES
 
 
@@ -301,12 +301,14 @@ void vr_point_cloud_aligner::save_back_state()
 	}
 	std::vector<Dir> translations;
 	std::vector<Qat> rotations;
+	std::vector<RGBA> colors;
 	for (int i = 0; i < pc.get_nr_components(); ++i) 
 	{
 		translations.push_back(pc.component_translation(i));
 		rotations.push_back(pc.component_rotation(i));
+		colors.push_back(pc.component_color(i));
 	}
-	program_state state = program_state(translations, rotations, picked_group, previous_picked_group, sets);
+	program_state state = program_state(translations, rotations, picked_group, previous_picked_group, sets,colors);
 	program_state_stack.push_back(state);
 	pss_count++;
 
@@ -317,6 +319,12 @@ void vr_point_cloud_aligner::restore_state(int i)
 	if(i > program_state_stack.size()-1)
 	{
 		printf("Wiederherstellen nicht möglich, keine Aktionen wurden weiter ausgeführt als diese!\n");
+		return;
+	}
+	if (i < 0)
+	{
+		printf("Keine Vorherige Aktion wiederherstellbar!");
+		return;
 	}
 	program_state_stack.at(i).pop_back_latest_state(pc, picked_group, previous_picked_group, sets);
 	pss_count = i;
@@ -787,7 +795,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 		cgv::gui::key_event& ke = static_cast<cgv::gui::key_event&>(e);
 		if (ke.get_action() == cgv::gui::KA_PRESS || ke.get_action() == cgv::gui::KA_REPEAT) {
 			switch (ke.get_key()) {
-			case 'Y':
+			case 'R':
 				reset_componets_transformations();
 				return true;
 			case 'I':
@@ -815,6 +823,11 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				icp_executing = false;
 				pending_unite = true;
 				return true;
+			case 'Z': 
+				restore_state(pss_count - 1);
+				return true;
+			case 'Y':
+				restore_state(pss_count + 1);
 			}
 		}
 	}
@@ -858,8 +871,8 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 
 						std::vector<int> temp_ids = picked_group.get_component_IDs();
 						for (int i = 0; i < temp_ids.size(); ++i) {
-							vec += pc.component_translation(temp_ids.at(i));
-							pc.component_translation(temp_ids.at(i)).set(vec.x(), vec.y(), vec.z());
+							Dir temp = vec + pc.component_translation(temp_ids.at(i));
+							pc.component_translation(temp_ids.at(i)).set(temp.x(), temp.y(), temp.z());
 						}						
 						save_back_state();
 						return true;

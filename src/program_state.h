@@ -14,12 +14,13 @@ private:
 	std::vector<point_cloud_types::Dir> translations;
 	std::vector<point_cloud_types::Qat> rotations;
 	std::vector<constructed_set> group_informations;
+	std::vector<cgv::media::color<float,cgv::media::RGB,cgv::media::OPACITY>> component_colors;
 	constructed_set picked_Group;
 	constructed_set previous_picked_Group;	
 
 public:
 	program_state();
-	program_state(std::vector<point_cloud_types::Dir> translations_, std::vector<point_cloud_types::Qat> rotations_, constructed_set picked, constructed_set previous_picked, std::vector<constructed_set> group_informations_);
+	program_state(std::vector<point_cloud_types::Dir> translations_, std::vector<point_cloud_types::Qat> rotations_, constructed_set picked, constructed_set previous_picked, std::vector<constructed_set> group_informations_, std::vector<cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY>> component_colors_);
 	void pop_back_latest_state(point_cloud &pcs, constructed_set &picked, constructed_set &previous_picked, std::vector<constructed_set> &group_informations_);
 };
 

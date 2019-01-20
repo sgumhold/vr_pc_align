@@ -7,11 +7,12 @@ program_state::program_state()
 {
 }
 
-program_state::program_state(std::vector<point_cloud_types::Dir> translations_, std::vector<point_cloud_types::Qat> rotations_, constructed_set picked, constructed_set previous_picked, std::vector<constructed_set> group_informations_)
+program_state::program_state(std::vector<point_cloud_types::Dir> translations_, std::vector<point_cloud_types::Qat> rotations_, constructed_set picked, constructed_set previous_picked, std::vector<constructed_set> group_informations_, std::vector<cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY>> component_colors_)
 {
 	translations = translations_;
 	rotations = rotations_;
 	group_informations = group_informations_;
+	component_colors = component_colors_;
 	picked_Group = picked;
 	previous_picked_Group = previous_picked;
 }
@@ -23,6 +24,7 @@ void program_state::pop_back_latest_state(point_cloud & pcs, constructed_set &pi
 	{ 
 		pcs.component_rotation(i) = rotations.at(i);
 		pcs.component_translation(i) = translations.at(i);
+		pcs.component_color(i) = component_colors.at(i);
 	}
 	picked = picked_Group;
 	previous_picked = previous_picked_Group;
