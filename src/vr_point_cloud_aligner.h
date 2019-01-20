@@ -88,6 +88,8 @@ private:
 
 	///Simple flag to show the user a pending unite
 	bool pending_unite;
+	///Simple flag for blinking animation
+	bool blink;
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();

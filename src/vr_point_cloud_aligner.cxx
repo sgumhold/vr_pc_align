@@ -249,11 +249,21 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 
 void vr_point_cloud_aligner::display_unite_question()
 {
+
 	printf("Scans vereinigen?");
-	
-	//IMPLEMENT GUI RESPONSES
-
-
+	std::vector<int> tempIds = picked_group.get_component_IDs();
+	for (int i = 0; i < tempIds.size(); ++i)
+	{
+		if (blink) {
+			pc.component_color(tempIds.at(i)) = RGBA(1, 0, 0, 0);
+			blink = false;
+		}
+		else 
+		{
+			pc.component_color(tempIds.at(i)) = pc.component_color(previous_picked_group.get_component_IDs().at(0));
+			blink = true;
+		}
+	}
 
 }
 
@@ -328,6 +338,7 @@ void vr_point_cloud_aligner::restore_state(int i)
 	}
 	program_state_stack.at(i).pop_back_latest_state(pc, picked_group, previous_picked_group, sets);
 	pss_count = i;
+	post_redraw();
 }
 
 void vr_point_cloud_aligner::start_ICP()
