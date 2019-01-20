@@ -250,7 +250,6 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 void vr_point_cloud_aligner::display_unite_question()
 {
 
-	printf("Scans vereinigen?");
 	std::vector<int> tempIds = picked_group.get_component_IDs();
 	for (int i = 0; i < tempIds.size(); ++i)
 	{
@@ -721,6 +720,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		usedIDs.push_back(currentminimizer);
 	}
 	projectLoading_in_process = false;
+	save_back_state();
 }
 
 void vr_point_cloud_aligner::save_project_file(std::string projectFile)
@@ -959,6 +959,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 			pc.component_rotation(i) = defaultFacing;
 		}
 	}
+	save_back_state();
 	post_redraw();
 }
 
