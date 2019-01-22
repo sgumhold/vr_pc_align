@@ -51,6 +51,9 @@ private:
 	///restores programstaskstate at point i
 	void restore_state(int i);
 
+	///Subsamples point clouds to given Resolution, can unite multiple pointclouds and draft a subsample from their points
+	void subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, Eigen::Matrix<double, 3, Eigen::Dynamic> &target, float subsampling_percentage);
+
 	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
 	void start_ICP();
 	

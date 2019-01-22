@@ -340,6 +340,81 @@ void vr_point_cloud_aligner::restore_state(int i)
 	post_redraw();
 }
 
+void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, 
+										Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, 
+											Eigen::Matrix<double, 3,Eigen::Dynamic> &vertices_target, float subsampling_percentage)
+{
+	std::vector<int> Ids_source = picked_group.get_component_IDs();
+	int sample_nr = Ids_source.size();
+	std::vector<component_info> component_info_stack_source;
+	int nr_of_all_points_source=0;
+	bool subsample_condition = false;
+	for (int i = 0; i < Ids_source.size(); ++i) 
+	{	
+		component_info a = pc.component_point_range(Ids_source.at(i));
+		component_info_stack_source.push_back(a);
+		nr_of_all_points_source += a.nr_points;
+	}
+	int subsampled_nr = (nr_of_all_points_source / subsampling_percentage);
+
+	int p = 0;
+	vertices_source.resize(Eigen::NoChange, subsampled_nr);
+	vertices_source_copy.resize(Eigen::NoChange, subsampled_nr);
+	for (int current_component = 0; current_component < component_info_stack_source.size(); ++current_component)
+	{
+		component_info a= component_info_stack_source.at(current_component);
+		
+		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
+		{
+			if (subsample_condition) {
+				continue;
+			}
+
+			Pnt tr_pnt = pc.transformed_pnt(current_adress);
+			vertices_source(0, p) = tr_pnt.x();
+			vertices_source(1, p) = tr_pnt.y();
+			vertices_source(2, p) = tr_pnt.z();
+
+			Pnt _pnt = pc.pnt(current_adress);
+			vertices_source_copy(0, p) = _pnt.x();
+			vertices_source_copy(1, p) = _pnt.y();
+			vertices_source_copy(2, p) = _pnt.z();
+			++p;
+		}
+	}
+
+	std::vector<int> Ids_target = previous_picked_group.get_component_IDs();
+	int sample_nr_target = Ids_target.size();
+	std::vector<component_info> component_info_stack_target;
+	int nr_of_all_points_target = 0;
+	bool subsample_condition = false;
+	for (int i = 0; i < Ids_target.size(); ++i)
+	{
+		component_info a = pc.component_point_range(Ids_target.at(i));
+		component_info_stack_target.push_back(a);
+		nr_of_all_points_target += a.nr_points;
+	}
+	int subsampled_nr = (nr_of_all_points_target / subsampling_percentage);
+	p = 0;
+
+	vertices_target.resize(Eigen::NoChange, nr_of_all_points_target);
+	for (int current_component = 0; current_component < component_info_stack_target.size(); ++current_component)
+	{
+		component_info a = component_info_stack_target.at(current_component);
+		if (subsample_condition) {
+			continue;
+		}
+		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
+		{
+			Pnt tr_pnt = pc.transformed_pnt(current_adress);
+			vertices_target(0, p) = tr_pnt.x();
+			vertices_target(1, p) = tr_pnt.y();
+			vertices_target(2, p) = tr_pnt.z();
+			++p;
+		}
+	}
+}
+
 void vr_point_cloud_aligner::start_ICP()
 {
 	///UNDER MAINTENANCE NOT WORKING RIGHT NOW
@@ -347,40 +422,6 @@ void vr_point_cloud_aligner::start_ICP()
 		return;
 	}
 	/*
-	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;
-	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source_copy;
-	component_info a  = pc.component_point_range(pickedComponent);
-	int p = 0;
-	//vertices , vertices_target; -> Downsampling integration here!
-	vertices_source.resize(Eigen::NoChange, a.nr_points);
-	vertices_source_copy.resize(Eigen::NoChange, a.nr_points);
-
-	for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++) 
-	{
-		Pnt tr_pnt= pc.transformed_pnt(current_adress);
-		vertices_source(0, p) = tr_pnt.x();
-		vertices_source(1, p) = tr_pnt.y();
-		vertices_source(2, p) = tr_pnt.z();
-
-		Pnt _pnt = pc.pnt(current_adress);
-		vertices_source_copy(0, p) = _pnt.x();
-		vertices_source_copy(1, p) = _pnt.y();
-		vertices_source_copy(2, p) = _pnt.z();
-		++p;
-	}
-
-	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_target;
-	a = pc.component_point_range(previous_picked_component);
-	p = 0;
-	vertices_target.resize(Eigen::NoChange, a.nr_points);
-	for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
-	{
-		Pnt tr_pnt = pc.transformed_pnt(current_adress);
-		vertices_target(0, p) = tr_pnt.x();
-		vertices_target(1, p) = tr_pnt.y();
-		vertices_target(2, p) = tr_pnt.z();
-		++p;
-	}
 	ICP::Parameters par;
 	par.p = .5;
 	par.max_icp = 10;
