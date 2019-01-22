@@ -7,7 +7,7 @@ program_state::program_state()
 {
 }
 
-program_state::program_state(const std::vector<point_cloud_types::Dir>& translations_, std::vector<point_cloud_types::Qat> rotations_, constructed_set picked, constructed_set previous_picked, std::vector<constructed_set> group_informations_, std::vector<cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY>> component_colors_, cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY> old_color)
+program_state::program_state(const std::vector<point_cloud_types::Dir>& translations_, const std::vector<point_cloud_types::Qat>& rotations_, const constructed_set& picked, const constructed_set& previous_picked, const std::vector<constructed_set>& group_informations_, const std::vector<cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY>>& component_colors_, const cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY>& old_color)
 {
 	translations = translations_;
 	rotations = rotations_;
