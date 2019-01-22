@@ -41,6 +41,7 @@ private:
 
 	cgv::render::surface_render_style box_render_style;
 	RGBA oldColor;
+	RGBA even_older_color;
 
 	///This shows the group the picked component belongs to, thus applieng all transformations to the group
 	constructed_set picked_group;
