@@ -7,7 +7,7 @@ program_state::program_state()
 {
 }
 
-program_state::program_state(std::vector<point_cloud_types::Dir> translations_, std::vector<point_cloud_types::Qat> rotations_, constructed_set picked, constructed_set previous_picked, std::vector<constructed_set> group_informations_, std::vector<cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY>> component_colors_)
+program_state::program_state(std::vector<point_cloud_types::Dir> translations_, std::vector<point_cloud_types::Qat> rotations_, constructed_set picked, constructed_set previous_picked, std::vector<constructed_set> group_informations_, std::vector<cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY>> component_colors_, cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY> old_color)
 {
 	translations = translations_;
 	rotations = rotations_;
@@ -17,7 +17,7 @@ program_state::program_state(std::vector<point_cloud_types::Dir> translations_, 
 	previous_picked_Group = previous_picked;
 }
 
-void program_state::pop_back_latest_state(point_cloud & pcs, constructed_set &picked, constructed_set &previous_picked, std::vector<constructed_set> &group_informations_)
+void program_state::pop_back_latest_state(point_cloud & pcs, constructed_set &picked, constructed_set &previous_picked, std::vector<constructed_set> &group_informations_, cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY> &old_color_)
 {
 	int nr_Components = pcs.get_nr_components();
 	for (int i = 0; i < nr_Components; ++i)
@@ -29,5 +29,6 @@ void program_state::pop_back_latest_state(point_cloud & pcs, constructed_set &pi
 	picked = picked_Group;
 	previous_picked = previous_picked_Group;
 	group_informations_ = group_informations;
+	old_color_ = old_color;
 }
 

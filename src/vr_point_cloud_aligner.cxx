@@ -35,6 +35,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	have_view_ray = false;
 	icp_executing = false;
 	pending_unite = false;
+	subsample_changed = true;
 	picked_group = EMPTY_CONSTRUCTED_SET;
 	previous_picked_group = EMPTY_CONSTRUCTED_SET;
 	program_state_stack = std::vector<program_state>();
@@ -283,7 +284,7 @@ void vr_point_cloud_aligner::unite(bool unite)
 		///set the colors equal
 		constructed_set temp = sets.at(otherPos);
 		std::vector<int> tempIDs = temp.get_component_IDs();
-		Clr tosetTo = pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
+		Clr tosetTo = RGBA(1,0,0,0);
 		for (int b = 0; b < tempIDs.size(); ++b)
 		{
 			pc.component_color(tempIDs.at(b)) = tosetTo;
@@ -291,13 +292,17 @@ void vr_point_cloud_aligner::unite(bool unite)
 		//now unite and delete
 		sets.at(unitingPos).unite(temp);
 		sets.erase(sets.begin() + otherPos);
+		previous_picked_group = EMPTY_CONSTRUCTED_SET;
+		picked_group = sets.at(unitingPos);
+		oldColor = pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
+		//save state and make the changes permanent
 		save_back_state();
+		post_redraw();
 	}
-	// if not reset to old state
+	// if not reset to pre icp state (which is the actual state)
 	else
 	{
-		//Strg + z
-		restore_state(pss_count - 1);
+		restore_state(pss_count);
 		post_redraw();
 	}
 }
@@ -317,7 +322,7 @@ void vr_point_cloud_aligner::save_back_state()
 		rotations.push_back(pc.component_rotation(i));
 		colors.push_back(pc.component_color(i));
 	}
-	program_state state = program_state(translations, rotations, picked_group, previous_picked_group, sets,colors);
+	program_state state = program_state(translations, rotations, picked_group, previous_picked_group, sets,colors,oldColor);
 	program_state_stack.push_back(state);
 	pss_count++;
 
@@ -335,7 +340,7 @@ void vr_point_cloud_aligner::restore_state(int i)
 		printf("Keine Vorherige Aktion wiederherstellbar!");
 		return;
 	}
-	program_state_stack.at(i).pop_back_latest_state(pc, picked_group, previous_picked_group, sets);
+	program_state_stack.at(i).pop_back_latest_state(pc, picked_group, previous_picked_group, sets,oldColor);
 	pss_count = i;
 	post_redraw();
 }
@@ -355,7 +360,7 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 		component_info_stack_source.push_back(a);
 		nr_of_all_points_source += a.nr_points;
 	}
-	int subsampled_nr = (nr_of_all_points_source / subsampling_percentage);
+	int subsampled_nr = (nr_of_all_points_source);/// subsampling_percentage);
 
 	int p = 0;
 	vertices_source.resize(Eigen::NoChange, subsampled_nr);
@@ -387,14 +392,14 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	int sample_nr_target = Ids_target.size();
 	std::vector<component_info> component_info_stack_target;
 	int nr_of_all_points_target = 0;
-	bool subsample_condition = false;
+	subsample_condition = false;
 	for (int i = 0; i < Ids_target.size(); ++i)
 	{
 		component_info a = pc.component_point_range(Ids_target.at(i));
 		component_info_stack_target.push_back(a);
 		nr_of_all_points_target += a.nr_points;
 	}
-	int subsampled_nr = (nr_of_all_points_target / subsampling_percentage);
+	int subsampled_nr_target = (nr_of_all_points_target); /// subsampling_percentage);
 	p = 0;
 
 	vertices_target.resize(Eigen::NoChange, nr_of_all_points_target);
@@ -418,10 +423,11 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 void vr_point_cloud_aligner::start_ICP()
 {
 	///UNDER MAINTENANCE NOT WORKING RIGHT NOW
-	if (true) {
-		return;
+	if (subsample_changed) {
+		subsample(vertices_source, vertices_source_copy, vertices_target,2);
+		subsample_changed = false;
 	}
-	/*
+	
 	ICP::Parameters par;
 	par.p = .5;
 	par.max_icp = 10;
@@ -435,7 +441,7 @@ void vr_point_cloud_aligner::start_ICP()
 	{
 		printf("First 5 Points of ICP:\n");
 		printf("ICPresult %d: %f, %f, %f; Original: %f, %f, %f; Target: %f, %f, %f \n", m, vertices_source(0, m), vertices_source(1, m), vertices_source(2, m), vertices_source_copy(0, m), vertices_source_copy(1, m), vertices_source_copy(2, m), vertices_target(0, m), vertices_target(1, m), vertices_target(2, m));
-	}
+	}*/
 	Eigen::Vector3d translation_vec = A.translation();
 	cgv::math::mat<float> casted_mat;
 	casted_mat.resize(3, 3);
@@ -473,11 +479,14 @@ void vr_point_cloud_aligner::start_ICP()
 			qy = (m12 + m21) / S;
 			qz = 0.25 * S;
 		}
-	pc.component_translation(pickedComponent).set(translation_vec.x(),translation_vec.y(),translation_vec.z());
-	pc.component_rotation(pickedComponent).set(qw,qx,qy,qz);
+		
+	std::vector<int> temp_IDs = picked_group.get_component_IDs();
+	for (int i = 0; i < temp_IDs.size(); ++i)
+	{
+		pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
+		pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
+	}
 	post_redraw();
-	*/
-	
 }
 
 
@@ -585,7 +594,9 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 				//Save pick
 				picked_group = new_pick;
 				save_back_state();
+				
 			}
+			subsample_changed = true;
 			post_redraw();
 		}
 

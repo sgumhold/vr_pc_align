@@ -8,6 +8,7 @@
 #include "interval.h"
 #include "constructed_set.h"
 #include "program_state.h"
+#include "../sparseicp/ICP.h"
 
 #include "lib_begin.h"
 
@@ -50,6 +51,12 @@ private:
 	void save_back_state();
 	///restores programstaskstate at point i
 	void restore_state(int i);
+
+	///This flag shows if the subsampling variables are changed
+	bool subsample_changed;
+	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;
+	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source_copy;
+	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_target;
 
 	///Subsamples point clouds to given Resolution, can unite multiple pointclouds and draft a subsample from their points
 	void subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, Eigen::Matrix<double, 3, Eigen::Dynamic> &target, float subsampling_percentage);
