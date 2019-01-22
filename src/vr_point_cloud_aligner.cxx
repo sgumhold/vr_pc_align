@@ -131,7 +131,7 @@ bool vr_point_cloud_aligner::self_reflect(cgv::reflect::reflection_handler& rh)
 {
 	return
 		//rh.reflect_member("sample_member_rows", sample_member_rows) &&
-		//rh.reflect_member("sample_member_cols", sample_member_cols) &&
+		rh.reflect_member("project_file", project_file) &&
 		point_cloud_interactable::self_reflect(rh);
 }
 void vr_point_cloud_aligner::stream_help(std::ostream& os)
@@ -296,7 +296,7 @@ void vr_point_cloud_aligner::unite(bool unite)
 		picked_group = sets.at(unitingPos);
 		oldColor = pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
 		//save state and make the changes permanent
-		save_back_state();
+		push_back_state();
 		post_redraw();
 	}
 	// if not reset to pre icp state (which is the actual state)
@@ -307,18 +307,18 @@ void vr_point_cloud_aligner::unite(bool unite)
 	}
 }
 
-void vr_point_cloud_aligner::save_back_state()
+void vr_point_cloud_aligner::push_back_state()
 {
-	if (pss_count < program_state_stack.size() - 1)
+	if (pss_count+1 < program_state_stack.size())
 	{
-		program_state_stack.erase(program_state_stack.begin() + pss_count, program_state_stack.end());
+		program_state_stack.erase(program_state_stack.begin() + pss_count + 1, program_state_stack.end());
 	}
-	std::vector<Dir> translations;
+	std::vector<Dir> translations(pc.get_nr_components());
 	std::vector<Qat> rotations;
 	std::vector<RGBA> colors;
 	for (int i = 0; i < pc.get_nr_components(); ++i) 
 	{
-		translations.push_back(pc.component_translation(i));
+		translations[i] = pc.component_translation(i);
 		rotations.push_back(pc.component_rotation(i));
 		colors.push_back(pc.component_color(i));
 	}
@@ -340,7 +340,7 @@ void vr_point_cloud_aligner::restore_state(int i)
 		printf("Keine Vorherige Aktion wiederherstellbar!");
 		return;
 	}
-	program_state_stack.at(i).pop_back_latest_state(pc, picked_group, previous_picked_group, sets,oldColor);
+	program_state_stack.at(i).put_back_state(pc, picked_group, previous_picked_group, sets,oldColor);
 	pss_count = i;
 	post_redraw();
 }
@@ -593,7 +593,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 				}
 				//Save pick
 				picked_group = new_pick;
-				save_back_state();
+				push_back_state();
 				
 			}
 			subsample_changed = true;
@@ -772,7 +772,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		usedIDs.push_back(currentminimizer);
 	}
 	projectLoading_in_process = false;
-	save_back_state();
+	push_back_state();
 }
 
 void vr_point_cloud_aligner::save_project_file(std::string projectFile)
@@ -863,7 +863,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				return true;
 			case 'I':
 				if(!icp_executing)
-					save_back_state();
+					push_back_state();
 				icp_executing = true;
 				return true;
 			case 'C':
@@ -937,7 +937,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							Dir temp = vec + pc.component_translation(temp_ids.at(i));
 							pc.component_translation(temp_ids.at(i)).set(temp.x(), temp.y(), temp.z());
 						}						
-						save_back_state();
+						push_back_state();
 						return true;
 					}
 				}
@@ -1011,7 +1011,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 			pc.component_rotation(i) = defaultFacing;
 		}
 	}
-	save_back_state();
+	push_back_state();
 	post_redraw();
 }
 

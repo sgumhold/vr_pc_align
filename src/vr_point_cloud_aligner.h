@@ -48,7 +48,7 @@ private:
 	constructed_set previous_picked_group;
 
 	///safes latest programstackstate
-	void save_back_state();
+	void push_back_state();
 	///restores programstaskstate at point i
 	void restore_state(int i);
 

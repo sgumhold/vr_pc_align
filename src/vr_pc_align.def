@@ -1,6 +1,4 @@
 show all
 type(console):x=0;y=0
 name(main):show_stats=false
-type(vr_point_cloud_aligner):sample_member_rows=2;sample_member_cols=10
-// type(vr_point_cloud_aligner):file_name="S:/data/points/bpc/camel_split.bpc"
-// type(vr_point_cloud_aligner):directory_name="S:/data/points/vialux/face-scans"
+type(vr_point_cloud_aligner):project_file="D:/Users/DBekele/Documents/cgvFramework/asdf.tpj"
