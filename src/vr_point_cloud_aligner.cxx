@@ -5,6 +5,7 @@
 #include <cgv/gui/mouse_event.h>
 #include "../sparseicp/ICP.h"
 #include "kabsch.h"
+#include <random>
 #include <cgv/base/find_action.h>
 #include <fstream>
 #include <cgv/utils/file.h>
@@ -348,7 +349,7 @@ void vr_point_cloud_aligner::restore_state(int i)
 
 void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, 
 										Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, 
-											Eigen::Matrix<double, 3,Eigen::Dynamic> &vertices_target, float subsampling_percentage)
+											Eigen::Matrix<double, 3,Eigen::Dynamic> &vertices_target, int subsampling_range)
 {
 	std::vector<int> Ids_source = picked_group.get_component_IDs();
 	int sample_nr = Ids_source.size();
@@ -361,9 +362,10 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 		component_info_stack_source.push_back(a);
 		nr_of_all_points_source += a.nr_points;
 	}
-	int subsampled_nr = (nr_of_all_points_source);/// subsampling_percentage);
-
+	int subsampled_nr = round(nr_of_all_points_source / subsampling_range);
 	int p = 0;
+	int range_counter = 1;
+	int picker = 1;
 	vertices_source.resize(Eigen::NoChange, subsampled_nr);
 	vertices_source_copy.resize(Eigen::NoChange, subsampled_nr);
 	for (int current_component = 0; current_component < component_info_stack_source.size(); ++current_component)
@@ -372,7 +374,12 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 		
 		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
 		{
-			if (subsample_condition) {
+			if (range_counter > subsampling_range) {
+				range_counter = 1;
+				//RAAAND pick = randomInt(1 - 10)
+			}
+			if (picker != range_counter) {
+				range_counter++;
 				continue;
 			}
 
@@ -386,9 +393,21 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 			vertices_source_copy(1, p) = _pnt.y();
 			vertices_source_copy(2, p) = _pnt.z();
 			++p;
+			++range_counter;
 		}
 	}
+	if (p != subsampled_nr) {
+		++p;
+		Pnt tr_pnt = pc.transformed_pnt(component_info_stack_source.at(0).index_of_first_point);
+		vertices_source(0, p) = tr_pnt.x();
+		vertices_source(1, p) = tr_pnt.y();
+		vertices_source(2, p) = tr_pnt.z();
 
+		Pnt _pnt = pc.pnt(component_info_stack_source.at(0).index_of_first_point);
+		vertices_source_copy(0, p) = _pnt.x();
+		vertices_source_copy(1, p) = _pnt.y();
+		vertices_source_copy(2, p) = _pnt.z();
+	}
 	std::vector<int> Ids_target = previous_picked_group.get_component_IDs();
 	int sample_nr_target = Ids_target.size();
 	std::vector<component_info> component_info_stack_target;
@@ -400,16 +419,13 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 		component_info_stack_target.push_back(a);
 		nr_of_all_points_target += a.nr_points;
 	}
-	int subsampled_nr_target = (nr_of_all_points_target); /// subsampling_percentage);
 	p = 0;
 
 	vertices_target.resize(Eigen::NoChange, nr_of_all_points_target);
 	for (int current_component = 0; current_component < component_info_stack_target.size(); ++current_component)
 	{
 		component_info a = component_info_stack_target.at(current_component);
-		if (subsample_condition) {
-			continue;
-		}
+
 		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
 		{
 			Pnt tr_pnt = pc.transformed_pnt(current_adress);
