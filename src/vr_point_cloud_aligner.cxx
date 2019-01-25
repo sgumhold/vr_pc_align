@@ -352,7 +352,6 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 											Eigen::Matrix<double, 3,Eigen::Dynamic> &vertices_target, int subsampling_range)
 {
 	std::vector<int> Ids_source = picked_group.get_component_IDs();
-	int sample_nr = Ids_source.size();
 	std::vector<component_info> component_info_stack_source;
 	int nr_of_all_points_source=0;
 	bool subsample_condition = false;
@@ -366,6 +365,10 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	int p = 0;
 	int range_counter = 1;
 	int picker = 1;
+	bool subsampling_OFF = false;
+	if (subsampling_range == 1) {
+		subsampling_OFF = true;
+	}
 	vertices_source.resize(Eigen::NoChange, subsampled_nr);
 	vertices_source_copy.resize(Eigen::NoChange, subsampled_nr);
 	for (int current_component = 0; current_component < component_info_stack_source.size(); ++current_component)
@@ -374,15 +377,19 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 		
 		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
 		{
-			if (range_counter > subsampling_range) {
-				range_counter = 1;
-				//RAAAND pick = randomInt(1 - 10)
+			if (!subsampling_OFF)
+			{
+				if (range_counter > subsampling_range)
+				{
+					range_counter = 1;
+					//RAAAND pick = randomInt(1 - 10)
+				}
+				if (picker != range_counter) 
+				{
+					range_counter++;
+					continue;
+				}
 			}
-			if (picker != range_counter) {
-				range_counter++;
-				continue;
-			}
-
 			Pnt tr_pnt = pc.transformed_pnt(current_adress);
 			vertices_source(0, p) = tr_pnt.x();
 			vertices_source(1, p) = tr_pnt.y();
@@ -439,9 +446,19 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 
 void vr_point_cloud_aligner::start_ICP()
 {
-	///UNDER MAINTENANCE NOT WORKING RIGHT NOW
+	int nr_of_all_points_source = 0;
+	std::vector<int> Ids_source = picked_group.get_component_IDs();
+	for (int i = 0; i < Ids_source.size(); ++i)
+	{
+		component_info a = pc.component_point_range(Ids_source.at(i));
+		nr_of_all_points_source += a.nr_points;
+	}
+	int subsampling_range = round(nr_of_all_points_source / 1000);
+	if (subsampling_range < 1) {
+		subsampling_range = 1;
+	}
 	if (subsample_changed) {
-		subsample(vertices_source, vertices_source_copy, vertices_target,2);
+		subsample(vertices_source, vertices_source_copy, vertices_target,subsampling_range);
 		subsample_changed = false;
 	}
 	
