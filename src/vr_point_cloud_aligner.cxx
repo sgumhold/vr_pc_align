@@ -283,20 +283,20 @@ void vr_point_cloud_aligner::unite(bool unite)
 				otherPos = a;
 		}
 
-		///set the colors equal
 		constructed_set temp = sets.at(otherPos);
-		std::vector<int> tempIDs = temp.get_component_IDs();
-		Clr tosetTo = RGBA(1,0,0,0);
-		for (int b = 0; b < tempIDs.size(); ++b)
-		{
-			pc.component_color(tempIDs.at(b)) = tosetTo;
-		}
 		//now unite and delete
 		sets.at(unitingPos).unite(temp);
 		sets.erase(sets.begin() + otherPos);
 		previous_picked_group = EMPTY_CONSTRUCTED_SET;
 		picked_group = sets.at(unitingPos);
-		oldColor = pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
+		oldColor = even_older_color;	//pc.component_color(sets.at(unitingPos).get_component_IDs().at(0));
+		//set the colors equal
+		std::vector<int> tempIDs = picked_group.get_component_IDs();
+		Clr tosetTo = RGBA(1, 0, 0, 1);
+		for (int b = 0; b < tempIDs.size(); ++b)
+		{
+			pc.component_color(tempIDs.at(b)) = tosetTo;
+		}
 		//save state and make the changes permanent
 		push_back_state();
 		post_redraw();
@@ -337,7 +337,7 @@ void vr_point_cloud_aligner::restore_state(int i)
 		printf("Wiederherstellen nicht möglich, keine Aktionen wurden weiter ausgeführt als diese!\n");
 		return;
 	}
-	if (i < 0)
+	if (i < 1)
 	{
 		printf("Keine Vorherige Aktion wiederherstellbar!");
 		return;
@@ -382,6 +382,7 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 				if (range_counter > subsampling_range)
 				{
 					range_counter = 1;
+					picker = 5;
 					//RAAAND pick = randomInt(1 - 10)
 				}
 				if (picker != range_counter) 
@@ -442,6 +443,7 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 			++p;
 		}
 	}
+	printf("Subsampled source set!");
 }
 
 void vr_point_cloud_aligner::start_ICP()
