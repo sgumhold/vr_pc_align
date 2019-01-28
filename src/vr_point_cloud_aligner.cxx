@@ -376,15 +376,14 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	{
 		component_info a= component_info_stack_source.at(current_component);
 		
-		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
+		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; ++current_adress)
 		{
 			if (!subsampling_OFF)
 			{
 				if (range_counter > subsampling_range)
 				{
 					range_counter = 1;
-					picker = 5;
-					//RAAAND pick = randomInt(1 - 10)
+					picker = rand() % subsampling_range;
 				}
 				if (picker != range_counter) 
 				{
@@ -392,6 +391,8 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 					continue;
 				}
 			}
+			if (p >= a.nr_points / subsampling_range)
+				break;
 			Pnt tr_pnt = pc.transformed_pnt(current_adress);
 			vertices_source(0, p) = tr_pnt.x();
 			vertices_source(1, p) = tr_pnt.y();
@@ -405,8 +406,8 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 			++range_counter;
 		}
 	}
-	if (p != subsampled_nr) {
-		++p;
+	if (p < subsampled_nr) {
+
 		Pnt tr_pnt = pc.transformed_pnt(component_info_stack_source.at(0).index_of_first_point);
 		vertices_source(0, p) = tr_pnt.x();
 		vertices_source(1, p) = tr_pnt.y();
@@ -416,6 +417,7 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 		vertices_source_copy(0, p) = _pnt.x();
 		vertices_source_copy(1, p) = _pnt.y();
 		vertices_source_copy(2, p) = _pnt.z();
+		++p;
 	}
 	std::vector<int> Ids_target = previous_picked_group.get_component_IDs();
 	int sample_nr_target = Ids_target.size();
@@ -456,7 +458,7 @@ void vr_point_cloud_aligner::start_ICP()
 		component_info a = pc.component_point_range(Ids_source.at(i));
 		nr_of_all_points_source += a.nr_points;
 	}
-	int subsampling_range = round(nr_of_all_points_source / 1000);
+	int subsampling_range = round(nr_of_all_points_source / 100);
 	if (subsampling_range < 1) {
 		subsampling_range = 1;
 	}
@@ -927,8 +929,6 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				reset_componets_transformations();
 				return true;
 			case 'I':
-				if(!icp_executing)
-					push_back_state();
 				icp_executing = true;
 				return true;
 			case 'C':
