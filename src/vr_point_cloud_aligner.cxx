@@ -327,7 +327,7 @@ void vr_point_cloud_aligner::push_back_state()
 	program_state state = program_state(translations, rotations, picked_group, previous_picked_group, sets,colors,oldColor,even_older_color);
 	program_state_stack.push_back(state);
 	pss_count++;
-
+	printf("saved state %d!\n", pss_count);
 }
 
 void vr_point_cloud_aligner::restore_state(int i)
@@ -337,13 +337,14 @@ void vr_point_cloud_aligner::restore_state(int i)
 		printf("Wiederherstellen nicht möglich, keine Aktionen wurden weiter ausgeführt als diese!\n");
 		return;
 	}
-	if (i < 1)
+	if (i < 0)
 	{
 		printf("Keine Vorherige Aktion wiederherstellbar!");
 		return;
 	}
 	program_state_stack.at(i).put_back_state(pc, picked_group, previous_picked_group, sets,oldColor,even_older_color);
 	pss_count = i;
+	printf("restored state %d!\n", pss_count);
 	post_redraw();
 }
 
@@ -818,13 +819,25 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		for (int j = 0; j < copySet.size(); ++j)
 		{
 			if (currentminimizer == copySet.at(j).get_ID())
+			{
 				currentSet.unite(copySet.at(j));
+				std::vector<int> colorchange = currentSet.get_component_IDs();
+				for (int t = 0; t < colorchange.size(); t++)
+				{
+					pc.component_color(colorchange.at(t)) = pc.component_color(colorchange.at(0));
+				}
+			}
+
 		}
 		sets.push_back(currentSet);
 		usedIDs.push_back(currentminimizer);
 	}
 	projectLoading_in_process = false;
+	//delete current stack and start a new one
+	program_state_stack.erase(program_state_stack.begin(), program_state_stack.end());
+	pss_count = 0;
 	push_back_state();
+	post_redraw();
 }
 
 void vr_point_cloud_aligner::save_project_file(std::string projectFile)
