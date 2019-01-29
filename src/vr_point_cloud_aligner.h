@@ -53,6 +53,8 @@ private:
 	///restores programstaskstate at point i
 	void restore_state(int i);
 
+	/// Checks for intersections and updates picked groups
+	void try_pick();
 	///This flag shows if the subsampling variables are changed
 	bool subsample_changed;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;
@@ -74,8 +76,6 @@ private:
 	bool have_picked_point;
 	/// position of picked point
 	Pnt picked_point;
-	/// point is picked right now
-	bool pick_active;
 	/// extent of box rendered around picked point
 	float picked_box_extent;
 	/// color of picked box

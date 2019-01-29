@@ -547,20 +547,10 @@ bool vr_point_cloud_aligner::ensure_view_pointer()
 	return false;
 }
 
-
-
-void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
+void vr_point_cloud_aligner::try_pick()
 {
-	// store current transformation matrix from world to device coordinates
-	DPV = ctx.get_DPV();
-
-	point_cloud_interactable::draw(ctx);
-
-	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
-	b_renderer.set_render_style(box_render_style);
-
 	//check for box intersections
-	if (have_picked_point && pick_active)
+	if (have_picked_point)
 	{
 		std::vector<Crd> intersectedPoints;
 		std::vector<int> component_NR;
@@ -576,7 +566,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 
 		int toPrint = intersectedPoints.size();
 		printf("%d \n", toPrint);
-		if (intersectedPoints.size() != 0) 
+		if (intersectedPoints.size() != 0)
 		{
 
 			Dir ray_dir = picked_point - last_view_point;
@@ -584,7 +574,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 			int min_component = -1;
 			for (int i = 0; i < intersectedPoints.size(); ++i)
 			{
-				if (z_factor_min > intersectedPoints.at(i)) 
+				if (z_factor_min > intersectedPoints.at(i))
 				{
 					min_component = i;
 					z_factor_min = intersectedPoints.at(i);
@@ -601,7 +591,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 					new_pick = sets.at(s);
 				}
 			}
-			if ((new_pick.get_ID() == previous_picked_group.get_ID() ||new_pick.get_ID() == picked_group.get_ID()) && new_pick.get_ID() != -1)
+			if ((new_pick.get_ID() == previous_picked_group.get_ID() || new_pick.get_ID() == picked_group.get_ID()) && new_pick.get_ID() != -1)
 			{
 				printf("deselected groups\n");
 				std::vector<int> toChange = picked_group.get_component_IDs();
@@ -630,12 +620,12 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 					}
 				}
 				//reset colors of old group
-				if(picked_group.get_ID() >= 0) 
+				if (picked_group.get_ID() >= 0)
 				{
 					std::vector<int> toChange = picked_group.get_component_IDs();
 					for (int x = 0; x < toChange.size(); ++x)
 					{
-						pc.component_color(toChange.at(x)) = RGBA(0.5,0,0,1);
+						pc.component_color(toChange.at(x)) = RGBA(0.5, 0, 0, 1);
 					}
 				}
 				//set picked to previous picked
@@ -653,14 +643,26 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 				//Save pick
 				picked_group = new_pick;
 				push_back_state();
-				
+
 			}
 			subsample_changed = true;
 			post_redraw();
 		}
-
-		pick_active = false;
 	}
+}
+
+
+
+void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
+{
+	// store current transformation matrix from world to device coordinates
+	DPV = ctx.get_DPV();
+
+	point_cloud_interactable::draw(ctx);
+
+	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
+	b_renderer.set_render_style(box_render_style);
+
 	if (have_view_ray) {
 		glLineWidth(5);
 		glColor3f(1, 1, 0);
@@ -686,11 +688,11 @@ bool vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pn
 	//Boxes are axis aligned defined by 2 coordinates. This means one can use the techniques of ECG raytracing slides s22
 	//Calculate for each axis its intersection intervall. Then intersect all intervalls to get the target intervall and its parameters
 	interval xintersection = calculate_intersectionintervall(ray_start.x(), box.get_min_pnt().x(), box.get_max_pnt().x(), ray_dir.x());
-	printf("Local xIntersection %f %f\n", xintersection.get_min(), xintersection.get_max());
+	//printf("Local xIntersection %f %f\n", xintersection.get_min(), xintersection.get_max());
 	interval yintersection = calculate_intersectionintervall(ray_start.y(), box.get_min_pnt().y(), box.get_max_pnt().y(), ray_dir.y());
-	printf("Local yIntersection %f %f\n", yintersection.get_min(), yintersection.get_max());
+	//printf("Local yIntersection %f %f\n", yintersection.get_min(), yintersection.get_max());
 	interval zintersection = calculate_intersectionintervall(ray_start.z(), box.get_min_pnt().z(), box.get_max_pnt().z(), ray_dir.z());
-	printf("Local zIntersection %f %f\n", zintersection.get_min(), zintersection.get_max());
+	//printf("Local zIntersection %f %f\n", zintersection.get_min(), zintersection.get_max());
 	if (xintersection.isInvalid() || yintersection.isInvalid() || zintersection.isInvalid())
 	{
 		return false;
@@ -985,7 +987,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						last_view_point = view_ptr->get_eye() - 0.5*view_ptr->get_view_up_dir();
 						last_target_point = picked_point;
 						have_view_ray = have_picked_point;
-						pick_active=true;
+						try_pick();
 					}
 					return true;
 				}
