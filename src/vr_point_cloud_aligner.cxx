@@ -20,6 +20,9 @@
 #define FILE_SAVE_FILTER "Transformation Projects (tpj):*.tpj;|all Files:*.*"
 
 #define EMPTY_CONSTRUCTED_SET constructed_set(std::vector<int>(), -1)
+
+#define SUBSAMPLING_RATE 1000
+
 ///Module 1 Startup methods
 
 ///Constructor
@@ -70,7 +73,7 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room_boxes.clear();
 	room_colors.clear();
 	Box room;
-	float x_room_min = 0, y_room_min = 0, z_room_min = -.2;
+	float x_room_min = 0, y_room_min = 0, z_room_min = float(-.2);
 	float lineCount = 20;
 	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
 	room.add_point(Pnt(Crd(5), Crd(5), Crd(0)));
@@ -204,16 +207,16 @@ void vr_point_cloud_aligner::position_scans()
 {
 	// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
 	int nr = 0;
-	for (int a = 0; a < user_modified.size(); a++) {
+	for (unsigned int a = 0; a < user_modified.size(); a++) {
 		if (user_modified.at(a)) {
 			nr++;
 		}
 	}
 	if (nr > 0)
 	{
-		for (int i = 0; i < pc.get_nr_components(); i++)
+		for (unsigned int i = 0; i < pc.get_nr_components(); i++)
 		{
-			float x = 5.1 / nr;
+			float x = float(5.1) / nr;
 			if (!user_modified.at(i))
 			{
 				pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
@@ -254,7 +257,7 @@ void vr_point_cloud_aligner::display_unite_question()
 {
 
 	std::vector<int> tempIds = picked_group.get_component_IDs();
-	for (int i = 0; i < tempIds.size(); ++i)
+	for (unsigned int i = 0; i < tempIds.size(); ++i)
 	{
 		if (blink) {
 			pc.component_color(tempIds.at(i)) = RGBA(1, 0, 0, 0);
@@ -275,7 +278,7 @@ void vr_point_cloud_aligner::unite(bool unite)
 	int otherPos = -1;
 	if (unite)
 	{
-		for (int a = 0; a < sets.size(); ++a)
+		for (unsigned int a = 0; a < sets.size(); ++a)
 		{
 			if (sets.at(a).get_ID() == previous_picked_group.get_ID())
 				unitingPos = a;
@@ -293,7 +296,7 @@ void vr_point_cloud_aligner::unite(bool unite)
 		//set the colors equal
 		std::vector<int> tempIDs = picked_group.get_component_IDs();
 		Clr tosetTo = RGBA(1, 0, 0, 1);
-		for (int b = 0; b < tempIDs.size(); ++b)
+		for (unsigned int b = 0; b < tempIDs.size(); ++b)
 		{
 			pc.component_color(tempIDs.at(b)) = tosetTo;
 		}
@@ -318,7 +321,7 @@ void vr_point_cloud_aligner::push_back_state()
 	std::vector<Dir> translations(pc.get_nr_components());
 	std::vector<Qat> rotations(pc.get_nr_components());
 	std::vector<RGBA> colors(pc.get_nr_components());
-	for (int i = 0; i < pc.get_nr_components(); ++i) 
+	for (unsigned int i = 0; i < pc.get_nr_components(); ++i) 
 	{
 		translations[i] = pc.component_translation(i);
 		rotations[i] = pc.component_rotation(i);
@@ -357,13 +360,13 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	std::vector<component_info> component_info_stack_source;
 	int nr_of_all_points_source=0;
 	bool subsample_condition = false;
-	for (int i = 0; i < Ids_source.size(); ++i) 
+	for (unsigned int i = 0; i < Ids_source.size(); ++i) 
 	{	
 		component_info a = pc.component_point_range(Ids_source.at(i));
 		component_info_stack_source.push_back(a);
 		nr_of_all_points_source += a.nr_points;
 	}
-	int subsampled_nr = round(nr_of_all_points_source / subsampling_range);
+	int subsampled_nr = int(round(nr_of_all_points_source / subsampling_range));
 	int p = 0;
 	int range_counter = 1;
 	int picker = 1;
@@ -373,11 +376,11 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	}
 	vertices_source.resize(Eigen::NoChange, subsampled_nr);
 	vertices_source_copy.resize(Eigen::NoChange, subsampled_nr);
-	for (int current_component = 0; current_component < component_info_stack_source.size(); ++current_component)
+	for (unsigned int current_component = 0; current_component < component_info_stack_source.size(); ++current_component)
 	{
 		component_info a= component_info_stack_source.at(current_component);
 		
-		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; ++current_adress)
+		for (unsigned int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; ++current_adress)
 		{
 			if (!subsampling_OFF)
 			{
@@ -459,7 +462,7 @@ void vr_point_cloud_aligner::start_ICP()
 		component_info a = pc.component_point_range(Ids_source.at(i));
 		nr_of_all_points_source += a.nr_points;
 	}
-	int subsampling_range = round(nr_of_all_points_source / 100);
+	int subsampling_range = round(nr_of_all_points_source / SUBSAMPLING_RATE);
 	if (subsampling_range < 1) {
 		subsampling_range = 1;
 	}
@@ -618,7 +621,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 			{
 				printf("Picked a group\n");
 				//reset colors of older group
-				if (previous_picked_group.get_ID() > 0)
+				if (previous_picked_group.get_ID() >= 0)
 				{
 					std::vector<int> toChange = previous_picked_group.get_component_IDs();
 					for (int x = 0; x < toChange.size(); ++x)
@@ -627,7 +630,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 					}
 				}
 				//reset colors of old group
-				if(picked_group.get_ID() > 0) 
+				if(picked_group.get_ID() >= 0) 
 				{
 					std::vector<int> toChange = picked_group.get_component_IDs();
 					for (int x = 0; x < toChange.size(); ++x)
@@ -768,7 +771,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			pc.create_component_colors();
 			pc.component_translation(0).set(x, y, z);
 			pc.component_rotation(0).set(re, xi, yi, zi);
-			pc.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()) / float(10), 0.5f, 1.0f, 1.0f);
+			pc.component_color(0) = RGBA(float(pc.get_nr_components()) / float(20),0.5f, 0.5f,0.5f);
 			user_modified.push_back(isUserModified);
 			file_paths.push_back(fileName);
 			transformation_lock = false;
@@ -785,7 +788,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				pc_to_append.create_component_colors();
 				pc_to_append.component_translation(0).set(x, y, z);
 				pc_to_append.component_rotation(0).set(re, xi, yi, zi);
-				pc_to_append.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()) / float(10), 0.5f, 1.0f, 1.0f);
+				pc_to_append.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()+1) / float(20), 0.5f, 0.5f, 0.5f);
 				user_modified.push_back(isUserModified);
 				file_paths.push_back(fileName);
 				pc.append(pc_to_append);
@@ -994,9 +997,9 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					{
 						Dir vec;// = last_target_point - last_view_point;
 						if (me.get_dy() > 0)
-							vec = (last_target_point - last_view_point) * -0.1;
+							vec = (last_target_point - last_view_point) * float(-0.1);
 						else
-							vec = (last_target_point - last_view_point) * 0.1;
+							vec = (last_target_point - last_view_point) * float(0.1);
 
 						std::vector<int> temp_ids = picked_group.get_component_IDs();
 						for (int i = 0; i < temp_ids.size(); ++i) {
