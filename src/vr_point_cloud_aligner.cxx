@@ -21,8 +21,11 @@
 
 #define EMPTY_CONSTRUCTED_SET constructed_set(std::vector<int>(), -1)
 
-#define SUBSAMPLING_RATE 1000
-
+#ifdef _DEBUG
+#define SAMPLE_COUNT 100
+#else 
+#define SAMPLE_COUNT 1000
+#endif
 ///Module 1 Startup methods
 
 ///Constructor
@@ -39,6 +42,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	have_view_ray = false;
 	icp_executing = false;
 	pending_unite = false;
+	seperation_in_process = false;
 	subsample_changed = true;
 	picked_group = EMPTY_CONSTRUCTED_SET;
 	previous_picked_group = EMPTY_CONSTRUCTED_SET;
@@ -54,6 +58,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	even_older_color = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
 	projectLoading_in_process = false;
+	//cgv::gui::trigger::get_current_time()
 	connect(cgv::gui::get_animation_trigger().shoot, this, &vr_point_cloud_aligner::timer_event);
 }
 
@@ -462,7 +467,7 @@ void vr_point_cloud_aligner::start_ICP()
 		component_info a = pc.component_point_range(Ids_source.at(i));
 		nr_of_all_points_source += a.nr_points;
 	}
-	int subsampling_range = round(nr_of_all_points_source / SUBSAMPLING_RATE);
+	int subsampling_range = round(nr_of_all_points_source / SAMPLE_COUNT);
 	if (subsampling_range < 1) {
 		subsampling_range = 1;
 	}
@@ -547,7 +552,46 @@ bool vr_point_cloud_aligner::ensure_view_pointer()
 	return false;
 }
 
-void vr_point_cloud_aligner::try_pick()
+void vr_point_cloud_aligner::try_component_pick()
+{
+	//check for box intersections
+	if (have_picked_point)
+	{
+		std::vector<Crd> intersectedPoints;
+		std::vector<int> component_NR;
+		std::vector<int> picked_group_ids = picked_group.get_component_IDs();
+		for (int i = 0; i < picked_group_ids.size(); i++)
+		{
+			Crd temp = box_ray_intersection(last_view_point, picked_point, pc.box(picked_group_ids.at(i)), pc.component_translation(picked_group_ids.at(i)), pc.component_rotation(picked_group_ids.at(i)));
+			if (temp > 0)
+			{
+				intersectedPoints.push_back(temp);
+				component_NR.push_back(i);
+			}
+		}
+
+		int toPrint = intersectedPoints.size();
+		printf("%d \n", toPrint);
+		if (intersectedPoints.size() != 0)
+		{
+
+			Dir ray_dir = picked_point - last_view_point;
+			float z_factor_min = 1000.0f;
+			int min_component = -1;
+			for (int i = 0; i < intersectedPoints.size(); ++i)
+			{
+				if (z_factor_min > intersectedPoints.at(i))
+				{
+					min_component = i;
+					z_factor_min = intersectedPoints.at(i);
+				}
+			}
+		}
+		///WORK IN PROGRESS
+	}
+}
+
+void vr_point_cloud_aligner::try_group_pick()
 {
 	//check for box intersections
 	if (have_picked_point)
@@ -773,7 +817,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			pc.create_component_colors();
 			pc.component_translation(0).set(x, y, z);
 			pc.component_rotation(0).set(re, xi, yi, zi);
-			pc.component_color(0) = RGBA(float(pc.get_nr_components()) / float(20),0.5f, 0.5f,0.5f);
+			pc.component_color(0) = RGBA(float(pc.get_nr_components()) / float(20),0.5f, 0.5f,1.0f);
 			user_modified.push_back(isUserModified);
 			file_paths.push_back(fileName);
 			transformation_lock = false;
@@ -790,7 +834,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				pc_to_append.create_component_colors();
 				pc_to_append.component_translation(0).set(x, y, z);
 				pc_to_append.component_rotation(0).set(re, xi, yi, zi);
-				pc_to_append.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()+1) / float(20), 0.5f, 0.5f, 0.5f);
+				pc_to_append.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()+1) / float(20), 0.5f, 0.5f, 1.0f);
 				user_modified.push_back(isUserModified);
 				file_paths.push_back(fileName);
 				pc.append(pc_to_append);
@@ -925,6 +969,10 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 	}
 }
 
+void vr_point_cloud_aligner::reverse_seperation() {}
+
+void vr_point_cloud_aligner::seperate_component() {}
+
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 {
 	if (e.get_kind() == cgv::gui::EID_KEY) {
@@ -942,12 +990,30 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					unite(false);
 					pending_unite = false;
 				}
+				else if (seperation_in_process)
+				{
+					seperation_in_process = false;
+					reverse_seperation();
+				}
 				return true;			
 			case 'U':
 				if (pending_unite) {
 					unite(true);
 					pending_unite = false;
 				}
+				else if (seperation_in_process)
+				{
+					if (seperation_id > -1)
+					{
+						seperation_in_process = false;
+						seperate_component();
+					}
+				}
+				return true;
+			case 'S':
+				if (!seperation_in_process && picked_group.get_ID() != -1 && picked_group.get_component_IDs().size() > 1)
+					seperation_in_process = true;
+				return true;
 			}
 		}
 		else if (ke.get_action() == cgv::gui::KA_RELEASE) 
@@ -987,7 +1053,10 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						last_view_point = view_ptr->get_eye() - 0.5*view_ptr->get_view_up_dir();
 						last_target_point = picked_point;
 						have_view_ray = have_picked_point;
-						try_pick();
+						if (seperation_in_process)
+							try_component_pick();
+						else
+							try_group_pick();
 					}
 					return true;
 				}

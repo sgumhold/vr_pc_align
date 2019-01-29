@@ -54,7 +54,18 @@ private:
 	void restore_state(int i);
 
 	/// Checks for intersections and updates picked groups
-	void try_pick();
+	void try_group_pick();
+	/// Checks for intersections and updates picked components to seperate
+	void try_component_pick();
+	/// Flag to show that a seperation is in process
+	bool seperation_in_process;
+	/// a chosen component to seperate
+	int seperation_id;
+	/// reverses the animation of scan seperation
+	void reverse_seperation();
+	/// seperates a previously chosen scan
+	void seperate_component();
+
 	///This flag shows if the subsampling variables are changed
 	bool subsample_changed;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;
