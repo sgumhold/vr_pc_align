@@ -304,16 +304,16 @@ void vr_point_cloud_aligner::unite(bool unite)
 	// if not reset to pre icp state (which is the actual state)
 	else
 	{
-		restore_state(pss_count);
+		restore_state(pss_count-1);
 		post_redraw();
 	}
 }
 
 void vr_point_cloud_aligner::push_back_state()
 {
-	if (pss_count+1 < program_state_stack.size())
+	if (pss_count < program_state_stack.size())
 	{
-		program_state_stack.erase(program_state_stack.begin() + pss_count + 1, program_state_stack.end());
+		program_state_stack.erase(program_state_stack.begin() + pss_count, program_state_stack.end());
 	}
 	std::vector<Dir> translations(pc.get_nr_components());
 	std::vector<Qat> rotations(pc.get_nr_components());
@@ -326,8 +326,8 @@ void vr_point_cloud_aligner::push_back_state()
 	}
 	program_state state = program_state(translations, rotations, picked_group, previous_picked_group, sets,colors,oldColor,even_older_color);
 	program_state_stack.push_back(state);
-	pss_count++;
 	printf("saved state %d!\n", pss_count);
+	pss_count++;
 }
 
 void vr_point_cloud_aligner::restore_state(int i)
@@ -345,6 +345,7 @@ void vr_point_cloud_aligner::restore_state(int i)
 	program_state_stack.at(i).put_back_state(pc, picked_group, previous_picked_group, sets,oldColor,even_older_color);
 	pss_count = i;
 	printf("restored state %d!\n", pss_count);
+	pss_count++;
 	post_redraw();
 }
 
@@ -952,10 +953,10 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				pending_unite = true;
 				return true;
 			case 'Z': 
-				restore_state(pss_count - 1);
+				restore_state(pss_count - 2);
 				return true;
 			case 'Y':
-				restore_state(pss_count + 1);
+				restore_state(pss_count);
 			}
 		}
 	}
