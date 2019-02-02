@@ -64,10 +64,12 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 
 void vr_point_cloud_aligner::timer_event(double t, double dt)
 {
-	if (icp_executing) {
+	if(icp_executing)
+	{
 		start_ICP();
 	}
-	if (pending_unite) {
+	if(pending_unite)
+	{
 		display_unite_question();
 	}
 }
@@ -140,7 +142,6 @@ std::string vr_point_cloud_aligner::get_type_name() const
 bool vr_point_cloud_aligner::self_reflect(cgv::reflect::reflection_handler& rh)
 {
 	return
-		//rh.reflect_member("sample_member_rows", sample_member_rows) &&
 		rh.reflect_member("project_file", project_file) &&
 		point_cloud_interactable::self_reflect(rh);
 }
@@ -376,7 +377,8 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	int range_counter = 1;
 	int picker = 1;
 	bool subsampling_OFF = false;
-	if (subsampling_range == 1) {
+	if (subsampling_range == 1)
+	{
 		subsampling_OFF = true;
 	}
 	vertices_source.resize(Eigen::NoChange, subsampled_nr);
@@ -468,10 +470,12 @@ void vr_point_cloud_aligner::start_ICP()
 		nr_of_all_points_source += a.nr_points;
 	}
 	int subsampling_range = round(nr_of_all_points_source / SAMPLE_COUNT);
-	if (subsampling_range < 1) {
+	if (subsampling_range < 1)
+	{
 		subsampling_range = 1;
 	}
-	if (subsample_changed) {
+	if (subsample_changed)
+	{
 		subsample(vertices_source, vertices_source_copy, vertices_target,subsampling_range);
 		subsample_changed = false;
 	}
@@ -499,28 +503,32 @@ void vr_point_cloud_aligner::start_ICP()
 	float qx, qy, qz, qw;
 	float tr = m00 + m11 + m22;
 
-		if (tr > 0) {
+		if (tr > 0)
+		{
 			float S = sqrt(tr + 1.0) * 2; // S=4*qw 
 			qw = 0.25 * S;
 			qx = (m21 - m12) / S;
 			qy = (m02 - m20) / S;
 			qz = (m10 - m01) / S;
 		}
-		else if ((m00 > m11)&(m00 > m22)) {
+		else if ((m00 > m11)&(m00 > m22))
+		{
 			float S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx 
 			qw = (m21 - m12) / S;
 			qx = 0.25 * S;
 			qy = (m01 + m10) / S;
 			qz = (m02 + m20) / S;
 		}
-		else if (m11 > m22) {
+		else if (m11 > m22)
+		{
 			float S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
 			qw = (m02 - m20) / S;
 			qx = (m01 + m10) / S;
 			qy = 0.25 * S;
 			qz = (m12 + m21) / S;
 		}
-		else {
+		else
+		{
 			float S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
 			qw = (m10 - m01) / S;
 			qx = (m02 + m20) / S;
@@ -962,16 +970,31 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 			post_redraw();
 		have_picked_point = false;
 	}
-	else {
+	else
+	{
+		dmat4 convertedDPV;
+		for (int x = 0; x < 4; ++x)
+		{
+			for (int y = 0; y < 4; ++y)
+			{
+				convertedDPV(x, y) = DPV(x, y);
+			}
+		}
 		have_picked_point = true;
-		picked_point = Pnt(&ctx.get_point_W(x, y, DPV)[0]);
+		picked_point = Pnt((&ctx.get_point_W(x, y, convertedDPV))[0]);
 		post_redraw();
 	}
 }
 
-void vr_point_cloud_aligner::reverse_seperation() {}
+void vr_point_cloud_aligner::reverse_seperation() 
+{
 
-void vr_point_cloud_aligner::seperate_component() {}
+}
+
+void vr_point_cloud_aligner::seperate_component() 
+{
+
+}
 
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 {
