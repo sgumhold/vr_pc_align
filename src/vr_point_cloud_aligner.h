@@ -112,6 +112,8 @@ private:
 	bool pending_unite;
 	///Simple flag for blinking animation
 	bool blink;
+	///Iteratet counter to get full seconds
+	double time_blink_counter;
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();

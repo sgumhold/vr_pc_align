@@ -48,7 +48,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	previous_picked_group = EMPTY_CONSTRUCTED_SET;
 	program_state_stack = std::vector<program_state>();
 	pss_count = 0;
-
+	time_blink_counter = double(0);
 	generate_room_boxes();
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
@@ -58,7 +58,6 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	even_older_color = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
 	projectLoading_in_process = false;
-	//cgv::gui::trigger::get_current_time()
 	connect(cgv::gui::get_animation_trigger().shoot, this, &vr_point_cloud_aligner::timer_event);
 }
 
@@ -67,10 +66,16 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 	if(icp_executing)
 	{
 		start_ICP();
+		//cgv::gui::trigger::get_current_time()
 	}
+	//printf("%f time var\n %f dtime var", t, dt);
 	if(pending_unite)
 	{
-		display_unite_question();
+		if (t > time_blink_counter + 0.5)
+		{
+			time_blink_counter = t + 0.5;
+			display_unite_question();
+		}
 	}
 }
 
@@ -261,7 +266,6 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 
 void vr_point_cloud_aligner::display_unite_question()
 {
-
 	std::vector<int> tempIds = picked_group.get_component_IDs();
 	for (unsigned int i = 0; i < tempIds.size(); ++i)
 	{
@@ -275,7 +279,7 @@ void vr_point_cloud_aligner::display_unite_question()
 			blink = true;
 		}
 	}
-
+	post_redraw();
 }
 
 void vr_point_cloud_aligner::unite(bool unite) 
@@ -539,7 +543,8 @@ void vr_point_cloud_aligner::start_ICP()
 	std::vector<int> temp_IDs = picked_group.get_component_IDs();
 	for (int i = 0; i < temp_IDs.size(); ++i)
 	{
-		pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
+		if(translation_vec.x() != NAN && translation_vec.y() != NAN && translation_vec.z() != NAN)
+			pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
 		pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
 	}
 	post_redraw();
