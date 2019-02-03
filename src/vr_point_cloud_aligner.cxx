@@ -541,11 +541,17 @@ void vr_point_cloud_aligner::start_ICP()
 		}
 		
 	std::vector<int> temp_IDs = picked_group.get_component_IDs();
-	for (int i = 0; i < temp_IDs.size(); ++i)
+	if (!translation_vec.allFinite())
 	{
-		if(translation_vec.x() != NAN && translation_vec.y() != NAN && translation_vec.z() != NAN)
+		printf("Kabsch or ICP Failure!");
+	}
+	else 
+	{
+		for (int i = 0; i < temp_IDs.size(); ++i)
+		{
 			pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
-		pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
+			pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
+		}
 	}
 	post_redraw();
 }
