@@ -6,6 +6,7 @@
 #include "../sparseicp/ICP.h"
 #include "kabsch.h"
 #include <random>
+#include <thread>
 #include <cgv/base/find_action.h>
 #include <fstream>
 #include <cgv/utils/file.h>
@@ -63,12 +64,20 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 
 void vr_point_cloud_aligner::timer_event(double t, double dt)
 {
+	if (transformation_lock)
+		return;
 	if(icp_executing)
 	{
-		start_ICP();
+		if (!transformation_lock) 
+		{
+			transformation_lock = true;
+			std::thread icp_thread(&vr_point_cloud_aligner::start_ICP,this);
+			icp_thread.detach();
+			return;
+		}
+		//start_ICP();
 		//cgv::gui::trigger::get_current_time()
 	}
-	//printf("%f time var\n %f dtime var", t, dt);
 	if(pending_unite)
 	{
 		if (t > time_blink_counter + 0.5)
@@ -489,7 +498,7 @@ void vr_point_cloud_aligner::start_ICP()
 	
 	ICP::Parameters par;
 	par.p = .5;
-	par.max_icp = 10;
+	par.max_icp = 100;
 	ICP::point_to_point(vertices_source, vertices_target, par);
 	printf("ICP finished\n");
 	///Now the vertices_source is recalculated and overwritten. we now need to calculate back the actual rotation and translation.
@@ -556,7 +565,7 @@ void vr_point_cloud_aligner::start_ICP()
 			pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
 		}
 	}
-	post_redraw();
+	transformation_lock = false;
 }
 
 
@@ -576,6 +585,10 @@ bool vr_point_cloud_aligner::ensure_view_pointer()
 
 void vr_point_cloud_aligner::try_component_pick()
 {
+	if (transformation_lock) 
+	{
+		return;
+	}
 	//check for box intersections
 	if (have_picked_point)
 	{
@@ -615,6 +628,10 @@ void vr_point_cloud_aligner::try_component_pick()
 
 void vr_point_cloud_aligner::try_group_pick()
 {
+	if (transformation_lock)
+	{
+		return;
+	}
 	//check for box intersections
 	if (have_picked_point)
 	{

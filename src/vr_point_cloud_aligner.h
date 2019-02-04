@@ -76,9 +76,6 @@ private:
 
 	///Subsamples point clouds to given Resolution, can unite multiple pointclouds and draft a subsample from their points
 	void subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, Eigen::Matrix<double, 3, Eigen::Dynamic> &target, int subsampling_range);
-
-	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
-	void start_ICP();
 	
 	/// stores information about aligned sets of scans
 	std::vector<constructed_set> sets;
@@ -192,7 +189,10 @@ public:
 	
 	//@}
 	interval calculate_intersectionintervall(float rayStart, float maxBoxCoord1, float maxBoxCoord2, float raydir);
-
+	
+	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
+	void start_ICP();
+	
 	/**@name user interface */
 	//@{
 	/// process key and mouse events
