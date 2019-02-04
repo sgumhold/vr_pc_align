@@ -7,6 +7,7 @@
 #include "kabsch.h"
 #include <random>
 #include <thread>
+#include <cgv/gui/animate.h>
 #include <cgv/base/find_action.h>
 #include <fstream>
 #include <cgv/utils/file.h>
@@ -559,13 +560,17 @@ void vr_point_cloud_aligner::start_ICP()
 	}
 	else 
 	{
+		//cgv::gui::animate_with_axis_rotation(,,,2,2,false)
 		for (int i = 0; i < temp_IDs.size(); ++i)
 		{
-			pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
 			pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
+			//pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
+			cgv::gui::animate_with_linear_blend(pc.component_translation(temp_IDs.at(i)), Dir(translation_vec.x(), translation_vec.y(), translation_vec.z()), 2, 0, false);
+
 		}
 	}
 	transformation_lock = false;
+	post_redraw();
 }
 
 
@@ -590,7 +595,7 @@ void vr_point_cloud_aligner::try_component_pick()
 		return;
 	}
 	//check for box intersections
-	if (have_picked_point)
+	if (have_picked_point && !pending_unite)
 	{
 		std::vector<Crd> intersectedPoints;
 		std::vector<int> component_NR;
@@ -628,7 +633,7 @@ void vr_point_cloud_aligner::try_component_pick()
 
 void vr_point_cloud_aligner::try_group_pick()
 {
-	if (transformation_lock)
+	if (transformation_lock || pending_unite)
 	{
 		return;
 	}

@@ -192,7 +192,12 @@ public:
 	
 	/// Starts the ICP algorithm with the last 2 picked scans. the older one is the target aligned to
 	void start_ICP();
+	/// Animation Vector
+	Dir animation_vector;
+	/// Animated Rotation
 	
+
+
 	/**@name user interface */
 	//@{
 	/// process key and mouse events
