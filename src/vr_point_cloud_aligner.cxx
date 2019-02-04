@@ -24,7 +24,7 @@
 #ifdef _DEBUG
 #define SAMPLE_COUNT 100
 #else 
-#define SAMPLE_COUNT 1000
+#define SAMPLE_COUNT 10000
 #endif
 ///Module 1 Startup methods
 
@@ -74,7 +74,7 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 		if (t > time_blink_counter + 0.5)
 		{
 			time_blink_counter = t + 0.5;
-			display_unite_question();
+			animate_pending_unite_blink();
 		}
 	}
 }
@@ -264,20 +264,23 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 	);
 }
 
-void vr_point_cloud_aligner::display_unite_question()
+void vr_point_cloud_aligner::animate_pending_unite_blink()
 {
 	std::vector<int> tempIds = picked_group.get_component_IDs();
+	cgv::media::color<float,cgv::media::RGB,cgv::media::OPACITY> changeTo;
+	if (blink) 
+	{
+		changeTo = RGBA(1, 0, 0, 1);
+		blink = false;
+	}
+	else
+	{
+		changeTo = pc.component_color(previous_picked_group.get_component_IDs().at(0));
+		blink = true;
+	}
 	for (unsigned int i = 0; i < tempIds.size(); ++i)
 	{
-		if (blink) {
-			pc.component_color(tempIds.at(i)) = RGBA(1, 0, 0, 0);
-			blink = false;
-		}
-		else 
-		{
-			pc.component_color(tempIds.at(i)) = pc.component_color(previous_picked_group.get_component_IDs().at(0));
-			blink = true;
-		}
+		pc.component_color(tempIds.at(i)) = changeTo;
 	}
 	post_redraw();
 }
@@ -997,12 +1000,17 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 	}
 }
 
-void vr_point_cloud_aligner::reverse_seperation() 
+void vr_point_cloud_aligner::display_reverse_seperation() 
 {
 
 }
 
 void vr_point_cloud_aligner::seperate_component() 
+{
+
+}
+
+void vr_point_cloud_aligner::display_seperation_selection()
 {
 
 }
@@ -1027,7 +1035,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				else if (seperation_in_process)
 				{
 					seperation_in_process = false;
-					reverse_seperation();
+					display_reverse_seperation();
 				}
 				return true;			
 			case 'U':

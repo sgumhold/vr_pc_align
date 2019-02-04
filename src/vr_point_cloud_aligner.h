@@ -62,9 +62,11 @@ private:
 	/// a chosen component to seperate
 	int seperation_id;
 	/// reverses the animation of scan seperation
-	void reverse_seperation();
+	void display_reverse_seperation();
 	/// seperates a previously chosen scan
 	void seperate_component();
+	/// animates a group to split
+	void display_seperation_selection();
 
 	///This flag shows if the subsampling variables are changed
 	bool subsample_changed;
@@ -122,7 +124,7 @@ private:
 	//Helper function
 	Clr generate_a_valid_color(int color);
 	///GUI for uniting components
-	void display_unite_question();
+	void animate_pending_unite_blink();
 	///The actual uniting function
 	void unite(bool unite);
 
