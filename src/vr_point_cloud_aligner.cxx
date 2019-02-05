@@ -337,7 +337,7 @@ void vr_point_cloud_aligner::unite(bool unite)
 
 void vr_point_cloud_aligner::push_back_state()
 {
-	if (pss_count < program_state_stack.size())
+	if (pss_count < int(program_state_stack.size()))
 	{
 		program_state_stack.erase(program_state_stack.begin() + pss_count, program_state_stack.end());
 	}
@@ -358,7 +358,7 @@ void vr_point_cloud_aligner::push_back_state()
 
 void vr_point_cloud_aligner::restore_state(int i)
 {
-	if(i > program_state_stack.size()-1)
+	if(i > int(program_state_stack.size())-1)
 	{
 		printf("Wiederherstellen nicht möglich, keine Aktionen wurden weiter ausgeführt als diese!\n");
 		return;
@@ -419,7 +419,7 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 					continue;
 				}
 			}
-			if (p >= a.nr_points / subsampling_range)
+			if (p >= int(a.nr_points) / subsampling_range)
 				break;
 			Pnt tr_pnt = pc.transformed_pnt(current_adress);
 			vertices_source(0, p) = tr_pnt.x();
@@ -452,7 +452,7 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	std::vector<component_info> component_info_stack_target;
 	int nr_of_all_points_target = 0;
 	subsample_condition = false;
-	for (int i = 0; i < Ids_target.size(); ++i)
+	for (int i = 0; i < int(Ids_target.size()); ++i)
 	{
 		component_info a = pc.component_point_range(Ids_target.at(i));
 		component_info_stack_target.push_back(a);
@@ -461,11 +461,11 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	p = 0;
 
 	vertices_target.resize(Eigen::NoChange, nr_of_all_points_target);
-	for (int current_component = 0; current_component < component_info_stack_target.size(); ++current_component)
+	for (int current_component = 0; current_component < int(component_info_stack_target.size()); ++current_component)
 	{
 		component_info a = component_info_stack_target.at(current_component);
 
-		for (int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; current_adress++)
+		for (int current_adress = int(a.index_of_first_point); current_adress < int(a.index_of_first_point + a.nr_points); current_adress++)
 		{
 			Pnt tr_pnt = pc.transformed_pnt(current_adress);
 			vertices_target(0, p) = tr_pnt.x();
@@ -481,12 +481,12 @@ void vr_point_cloud_aligner::start_ICP()
 {
 	int nr_of_all_points_source = 0;
 	std::vector<int> Ids_source = picked_group.get_component_IDs();
-	for (int i = 0; i < Ids_source.size(); ++i)
+	for (int i = 0; i < int(Ids_source.size()); ++i)
 	{
 		component_info a = pc.component_point_range(Ids_source.at(i));
 		nr_of_all_points_source += a.nr_points;
 	}
-	int subsampling_range = round(nr_of_all_points_source / SAMPLE_COUNT);
+	int subsampling_range = int(round(nr_of_all_points_source / SAMPLE_COUNT));
 	if (subsampling_range < 1)
 	{
 		subsampling_range = 1;
@@ -516,13 +516,13 @@ void vr_point_cloud_aligner::start_ICP()
 	casted_mat.resize(3, 3);
 	Eigen::Matrix<double, 3, 3> R = A.rotation();
 	
-	float m00 = R(0, 0),m01=R(0,1),m02 =R(0,2), m10=R(1,0), m11 = R(1, 1), m12 = R(1,2), m20 = R(2,0), m21 = R(2,1), m22 = R(2, 2);
-	float qx, qy, qz, qw;
-	float tr = m00 + m11 + m22;
+	double m00 = R(0, 0),m01=R(0,1),m02 =R(0,2), m10=R(1,0), m11 = R(1, 1), m12 = R(1,2), m20 = R(2,0), m21 = R(2,1), m22 = R(2, 2);
+	double qx, qy, qz, qw;
+	double tr = m00 + m11 + m22;
 
 		if (tr > 0)
 		{
-			float S = sqrt(tr + 1.0) * 2; // S=4*qw 
+			double S = sqrt(tr + 1.0) * 2; // S=4*qw 
 			qw = 0.25 * S;
 			qx = (m21 - m12) / S;
 			qy = (m02 - m20) / S;
@@ -530,7 +530,7 @@ void vr_point_cloud_aligner::start_ICP()
 		}
 		else if ((m00 > m11)&(m00 > m22))
 		{
-			float S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx 
+			double S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx 
 			qw = (m21 - m12) / S;
 			qx = 0.25 * S;
 			qy = (m01 + m10) / S;
@@ -538,7 +538,7 @@ void vr_point_cloud_aligner::start_ICP()
 		}
 		else if (m11 > m22)
 		{
-			float S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
+			double S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
 			qw = (m02 - m20) / S;
 			qx = (m01 + m10) / S;
 			qy = 0.25 * S;
@@ -546,7 +546,7 @@ void vr_point_cloud_aligner::start_ICP()
 		}
 		else
 		{
-			float S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
+			double S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
 			qw = (m10 - m01) / S;
 			qx = (m02 + m20) / S;
 			qy = (m12 + m21) / S;
@@ -561,11 +561,11 @@ void vr_point_cloud_aligner::start_ICP()
 	else 
 	{
 		//cgv::gui::animate_with_axis_rotation(,,,2,2,false)
-		for (int i = 0; i < temp_IDs.size(); ++i)
+		for (int i = 0; i < int(temp_IDs.size()); ++i)
 		{
 			pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
 			//pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
-			cgv::gui::animate_with_linear_blend(pc.component_translation(temp_IDs.at(i)), Dir(translation_vec.x(), translation_vec.y(), translation_vec.z()), 2, 0, false);
+			cgv::gui::animate_with_linear_blend(pc.component_translation(temp_IDs.at(i)), Dir(translation_vec.x(), translation_vec.y(), translation_vec.z()), 3, 0, false);
 
 		}
 	}
@@ -600,7 +600,7 @@ void vr_point_cloud_aligner::try_component_pick()
 		std::vector<Crd> intersectedPoints;
 		std::vector<int> component_NR;
 		std::vector<int> picked_group_ids = picked_group.get_component_IDs();
-		for (int i = 0; i < picked_group_ids.size(); i++)
+		for (int i = 0; i < int(picked_group_ids.size()); i++)
 		{
 			Crd temp = box_ray_intersection(last_view_point, picked_point, pc.box(picked_group_ids.at(i)), pc.component_translation(picked_group_ids.at(i)), pc.component_rotation(picked_group_ids.at(i)));
 			if (temp > 0)
@@ -618,7 +618,7 @@ void vr_point_cloud_aligner::try_component_pick()
 			Dir ray_dir = picked_point - last_view_point;
 			float z_factor_min = 1000.0f;
 			int min_component = -1;
-			for (int i = 0; i < intersectedPoints.size(); ++i)
+			for (int i = 0; i < int(intersectedPoints.size()); ++i)
 			{
 				if (z_factor_min > intersectedPoints.at(i))
 				{
@@ -642,7 +642,7 @@ void vr_point_cloud_aligner::try_group_pick()
 	{
 		std::vector<Crd> intersectedPoints;
 		std::vector<int> component_NR;
-		for (int i = 0; i < pc.get_nr_components(); i++)
+		for (int i = 0; i < int(pc.get_nr_components()); i++)
 		{
 			Crd temp = box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i));
 			if (temp > 0)
@@ -660,7 +660,7 @@ void vr_point_cloud_aligner::try_group_pick()
 			Dir ray_dir = picked_point - last_view_point;
 			float z_factor_min = 1000.0f;
 			int min_component = -1;
-			for (int i = 0; i < intersectedPoints.size(); ++i)
+			for (int i = 0; i < int(intersectedPoints.size()); ++i)
 			{
 				if (z_factor_min > intersectedPoints.at(i))
 				{
@@ -672,7 +672,7 @@ void vr_point_cloud_aligner::try_group_pick()
 
 			constructed_set new_pick;
 			//Search for possible picked groups
-			for (int s = 0; s < sets.size(); ++s)
+			for (int s = 0; s < int(sets.size()); ++s)
 			{
 				if (sets.at(s).find_component_ID(a))
 				{
@@ -683,12 +683,12 @@ void vr_point_cloud_aligner::try_group_pick()
 			{
 				printf("deselected groups\n");
 				std::vector<int> toChange = picked_group.get_component_IDs();
-				for (int x = 0; x < toChange.size(); ++x)
+				for (int x = 0; x < int(toChange.size()); ++x)
 				{
 					pc.component_color(toChange.at(x)) = oldColor;
 				}
 				toChange = previous_picked_group.get_component_IDs();
-				for (int x = 0; x < toChange.size(); ++x)
+				for (int x = 0; x < int(toChange.size()); ++x)
 				{
 					pc.component_color(toChange.at(x)) = even_older_color;
 				}
@@ -702,7 +702,7 @@ void vr_point_cloud_aligner::try_group_pick()
 				if (previous_picked_group.get_ID() >= 0)
 				{
 					std::vector<int> toChange = previous_picked_group.get_component_IDs();
-					for (int x = 0; x < toChange.size(); ++x)
+					for (int x = 0; x < int(toChange.size()); ++x)
 					{
 						pc.component_color(toChange.at(x)) = even_older_color;
 					}
@@ -711,7 +711,7 @@ void vr_point_cloud_aligner::try_group_pick()
 				if (picked_group.get_ID() >= 0)
 				{
 					std::vector<int> toChange = picked_group.get_component_IDs();
-					for (int x = 0; x < toChange.size(); ++x)
+					for (int x = 0; x < int(toChange.size()); ++x)
 					{
 						pc.component_color(toChange.at(x)) = RGBA(0.5, 0, 0, 1);
 					}
@@ -724,7 +724,7 @@ void vr_point_cloud_aligner::try_group_pick()
 				oldColor = pc.component_color(a);
 				//change active group to red
 				std::vector<int> toChange = new_pick.get_component_IDs();
-				for (int x = 0; x < toChange.size(); ++x)
+				for (int x = 0; x < int(toChange.size()); ++x)
 				{
 					pc.component_color(toChange.at(x)) = RGBA(1, 0, 0, 1);
 				}
@@ -892,18 +892,18 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 
 	// Algorithm to reconstruct the unite set structure
 	std::vector<constructed_set> copySet;
-	for (int l = 0; l < alignment_IDs.size(); ++l)
+	for (int l = 0; l < int(alignment_IDs.size()); ++l)
 	{
 		std::vector<int> a;
 		a.push_back(l);
 		copySet.push_back(constructed_set(a, alignment_IDs.at(l)));
 	}
 	std::vector<int> usedIDs;
-	for(int l = 0; l < alignment_IDs.size(); ++l)
+	for(int l = 0; l < int(alignment_IDs.size()); ++l)
 	{
 		int currentminimizer = alignment_IDs.at(l);
 		bool skip = false;
-		for (int k = 0; k < usedIDs.size(); ++k)
+		for (int k = 0; k < int(usedIDs.size()); ++k)
 		{
 			if (currentminimizer == usedIDs.at(k))
 				skip = true;
@@ -912,13 +912,13 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			continue;
 		std::vector<int> b;
 		constructed_set currentSet(b, currentminimizer);
-		for (int j = 0; j < copySet.size(); ++j)
+		for (int j = 0; j < int(copySet.size()); ++j)
 		{
 			if (currentminimizer == copySet.at(j).get_ID())
 			{
 				currentSet.unite(copySet.at(j));
 				std::vector<int> colorchange = currentSet.get_component_IDs();
-				for (int t = 0; t < colorchange.size(); t++)
+				for (int t = 0; t < int(colorchange.size()); t++)
 				{
 					pc.component_color(colorchange.at(t)) = pc.component_color(colorchange.at(0));
 				}
@@ -944,9 +944,9 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 	if (0 == pc.get_nr_components()) {
 		printf("Keine Komponenten zum speichern!");
 	}
-	for (int i = 0; i < pc.get_nr_components(); i++) {
+	for (int i = 0; i < int(pc.get_nr_components()); i++) {
 		int alignmentID = -1;
-		for (int c = 0; c < sets.size(); ++c) 
+		for (int c = 0; c < int(sets.size()); ++c) 
 		{
 			if (sets.at(c).find_component_ID(i))
 				alignmentID = sets.at(c).get_ID();
@@ -1137,7 +1137,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							vec = (last_target_point - last_view_point) * float(0.1);
 
 						std::vector<int> temp_ids = picked_group.get_component_IDs();
-						for (int i = 0; i < temp_ids.size(); ++i) {
+						for (int i = 0; i < int(temp_ids.size()); ++i) {
 							Dir temp = vec + pc.component_translation(temp_ids.at(i));
 							pc.component_translation(temp_ids.at(i)).set(temp.x(), temp.y(), temp.z());
 						}						
@@ -1210,7 +1210,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 	{
 		for (int i = 0; i < nr; i++)
 		{
-			float x = 5.1 / nr;
+			float x = float(5.1 / nr);
 			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));				
 			pc.component_rotation(i) = defaultFacing;
 		}
@@ -1243,7 +1243,7 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 		save_project_file(write_project_file);
 	}
 	if(!transformation_lock && pc.get_nr_components()>0)
-	for (int i = 0; i < pc.get_nr_components(); i++) {
+	for (int i = 0; i < int(pc.get_nr_components()); i++) {
 		if (member_ptr == &pc.component_rotation(i) || member_ptr == &pc.component_translation(i))
 		{
 			user_modified.at(i) = true;
