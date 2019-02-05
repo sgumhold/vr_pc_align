@@ -1061,7 +1061,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		nr_off_all_points += a.nr_points;
 	}
 	int p = 0;
-	std::vector<Dir> averaged;
+	std::vector<Dir> averaged_normal_direction;
 	Pnt average_middle(0, 0, 0);
 	for (unsigned int current_component = 0; current_component < component_info_stack_source.size(); ++current_component)
 	{
@@ -1075,7 +1075,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		}
 		current_normal /= p;
 		current_normal.normalize();
-		averaged.push_back(current_normal);
+		averaged_normal_direction.push_back(current_normal);
 	}
 	average_middle /= nr_off_all_points;
 	// Problems -> scans with similiar normals have similiar directions
@@ -1085,7 +1085,57 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	// Solution: Most scans components are taken in an 30° intervall. use these 30° intervals as ground directions. calculate the crossproduct to all directions.
 	// Find the smallest product and use this direction. Repeat for all scans. Normally the scans should all go to different directions.
 	// Solution 2: Use a formula to devide the 360° circle of the xy area to equal parts and use the biggest numbers as top scan if the number is not even(the one going updward towards z)
-	
+	// step 1 obtain rotation matrix formula
+	double rotation_degree = 0;
+	int rotation_steps = 0;
+	if (Ids_source.size() % 2 == 0)
+	{
+		rotation_steps = int(Ids_source.size());
+	}
+	else
+	{
+		rotation_steps = int(Ids_source.size()-1);
+	}
+	rotation_degree = 360 / rotation_steps;
+
+	cgv::math::fmat<float,3,3> rotation_mat;
+	rotation_mat(0, 0) = cos(rotation_degree);
+	rotation_mat(0, 1) = -sin(rotation_degree);
+	rotation_mat(0, 2) = 0;
+	rotation_mat(1, 0) = sin(rotation_degree);
+	rotation_mat(1, 1) = cos(rotation_degree);
+	rotation_mat(1, 2) = 0;
+	rotation_mat(2, 0) = 0;
+	rotation_mat(2, 1) = 0;
+	rotation_mat(2, 2) = 1;
+	std::vector<Dir> rotated_directions;
+	std::set<int> matched_ids;
+	Dir basic_vec(1, 0, 0);
+	for (int i = 0; i < rotation_steps; ++i)
+	{
+		rotated_directions.push_back(basic_vec);
+		double temp_cross_product = 1000;
+		int lowest_ID = 0;
+		for (int x = 0; x < int(averaged_normal_direction.size());++x)
+		{
+			if (matched_ids.find(x) == matched_ids.end())
+			{
+				continue;
+			}
+			if (temp_cross_product > (cgv::math::cross(averaged_normal_direction.at(x), basic_vec).length()))
+			{
+				lowest_ID = x;
+				temp_cross_product = cgv::math::cross(averaged_normal_direction.at(x), basic_vec).length();
+			}
+		}
+		matched_ids.insert(lowest_ID);
+		basic_vec = rotation_mat * basic_vec;
+	}
+	//step 2 apply all the changes by animation and if the number is uneven find the uneven scan and lift it
+
+	//step 3 cleanup and post redraw
+
+	post_redraw();
 }
 
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
