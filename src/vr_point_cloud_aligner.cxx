@@ -1034,7 +1034,58 @@ void vr_point_cloud_aligner::seperate_component()
 
 void vr_point_cloud_aligner::display_seperation_selection()
 {
-
+	//Start by calculating BB diagonals
+	std::vector<int> group_ids = picked_group.get_component_IDs();
+	double max_bb_diagonal = double(0);
+	for (int i = 0; i < int(group_ids.size()); ++i)
+	{
+		Dir BB_diag = pc.box(group_ids.at(i)).get_min_pnt() - pc.box(group_ids.at(i)).get_max_pnt();
+		if (max_bb_diagonal < double(BB_diag.length()))
+		{
+			max_bb_diagonal = BB_diag.length();
+		}
+	}
+	if (!pc.has_normals())
+	{
+		std::thread normalThread(&point_cloud::create_normals, pc);
+		normalThread.join();
+	}
+	//calculate per component average normal to estimate optimal splitting direction
+	std::vector<int> Ids_source = picked_group.get_component_IDs();
+	std::vector<component_info> component_info_stack_source;
+	int nr_off_all_points = 0;
+	for (unsigned int i = 0; i < Ids_source.size(); ++i)
+	{
+		component_info a = pc.component_point_range(Ids_source.at(i));
+		component_info_stack_source.push_back(a);
+		nr_off_all_points += a.nr_points;
+	}
+	int p = 0;
+	std::vector<Dir> averaged;
+	Pnt average_middle(0, 0, 0);
+	for (unsigned int current_component = 0; current_component < component_info_stack_source.size(); ++current_component)
+	{
+		component_info a = component_info_stack_source.at(current_component);
+		Dir current_normal(0, 0, 0);
+		for (unsigned int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; ++current_adress)
+		{
+			current_normal += pc.nml(p);
+			average_middle += pc.transformed_pnt(p);
+			++p;
+		}
+		current_normal /= p;
+		current_normal.normalize();
+		averaged.push_back(current_normal);
+	}
+	average_middle /= nr_off_all_points;
+	// Problems -> scans with similiar normals have similiar directions
+	// Solution: use fixed directions. For every averaged normal, the best direction is choosen via crossproduct with fixed direction options
+	// This way no scan overlaps
+	// Problem -> the number of directions has to be dynamic and in best case the directions adjust to the number
+	// Solution: Most scans components are taken in an 30° intervall. use these 30° intervals as ground directions. calculate the crossproduct to all directions.
+	// Find the smallest product and use this direction. Repeat for all scans. Normally the scans should all go to different directions.
+	// Solution 2: Use a formula to devide the 360° circle of the xy area to equal parts and use the biggest numbers as top scan if the number is not even(the one going updward towards z)
+	
 }
 
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
