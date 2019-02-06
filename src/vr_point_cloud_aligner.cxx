@@ -1046,9 +1046,8 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		}
 	}
 	if (!pc.has_normals())
-	{
-		std::thread normalThread(&point_cloud::create_normals, pc);
-		normalThread.join();
+	{	
+		pc.create_normals();
 	}
 	//calculate per component average normal to estimate optimal splitting direction
 	std::vector<int> Ids_source = picked_group.get_component_IDs();
@@ -1088,13 +1087,16 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	// step 1 obtain rotation matrix formula
 	double rotation_degree = 0;
 	int rotation_steps = 0;
+	bool uneven_comp_number = false;
 	if (Ids_source.size() % 2 == 0)
 	{
 		rotation_steps = int(Ids_source.size());
+		uneven_comp_number = false;
 	}
 	else
 	{
 		rotation_steps = int(Ids_source.size()-1);
+		uneven_comp_number = true;
 	}
 	rotation_degree = 360 / rotation_steps;
 
@@ -1110,15 +1112,16 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	rotation_mat(2, 2) = 1;
 	std::vector<Dir> rotated_directions;
 	std::set<int> matched_ids;
+	std::vector<int> ids;
 	Dir basic_vec(1, 0, 0);
 	for (int i = 0; i < rotation_steps; ++i)
 	{
 		rotated_directions.push_back(basic_vec);
 		double temp_cross_product = 1000;
-		int lowest_ID = 0;
+		int lowest_ID = -1;
 		for (int x = 0; x < int(averaged_normal_direction.size());++x)
 		{
-			if (matched_ids.find(x) == matched_ids.end())
+			if (!(matched_ids.find(x) == matched_ids.end()))
 			{
 				continue;
 			}
@@ -1129,12 +1132,33 @@ void vr_point_cloud_aligner::display_seperation_selection()
 			}
 		}
 		matched_ids.insert(lowest_ID);
+		ids.push_back(lowest_ID);
 		basic_vec = rotation_mat * basic_vec;
 	}
+	bool used_top = false;
 	//step 2 apply all the changes by animation and if the number is uneven find the uneven scan and lift it
-
+	for (int x = 0; x < int(Ids_source.size()); ++x)
+	{
+		if ((matched_ids.find(x) == matched_ids.end()))
+		{
+			//animate with transition to top (0,0,1)
+			Dir translation = Dir(0, 0, 1) * max_bb_diagonal + average_middle;
+			cgv::gui::animate_with_linear_blend(pc.component_translation(Ids_source.at(ids.at(x))), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
+			used_top = true;
+			post_redraw();
+		}
+		else
+		{
+			int a = x;
+			if (used_top)
+				a -= 1;
+			//animate with transition to rotated direction
+			Dir translation = rotated_directions.at(a) * max_bb_diagonal + average_middle;
+			cgv::gui::animate_with_linear_blend(pc.component_translation(Ids_source.at(ids.at(a))), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
+			post_redraw();
+		}
+	}
 	//step 3 cleanup and post redraw
-
 	post_redraw();
 }
 
@@ -1177,7 +1201,12 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				return true;
 			case 'S':
 				if (!seperation_in_process && picked_group.get_ID() != -1 && picked_group.get_component_IDs().size() > 1)
+				{
 					seperation_in_process = true;
+					std::thread sep_thread(&vr_point_cloud_aligner::display_seperation_selection, this);
+					sep_thread.detach();
+					post_redraw();
+				}
 				return true;
 			}
 		}
