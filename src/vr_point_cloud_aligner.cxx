@@ -76,8 +76,6 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 			icp_thread.detach();
 			return;
 		}
-		//To smooth animation redraw every hz during icp
-		post_redraw();
 	}
 	if(pending_unite)
 	{
@@ -87,11 +85,8 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 			animate_pending_unite_blink();
 		}
 	}
-	if (seperation_in_process) 
-	{
-		//To smooth animation redraw every hz during seperation
-		post_redraw();
-	}
+	// try to optimise this!
+	post_redraw();
 }
 
 ///Setup for the working room
@@ -1150,7 +1145,8 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		//animate with transition to rotated direction
 		Dir translation = rotated_directions.at(x) * max_bb_diagonal + average_middle;
 		cgv::gui::animate_with_linear_blend(pc.component_translation(ids.at(x)), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
-		pc.component_color(ids.at(x)) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(x) / float(ids.size()), 0.5f, 0.5f, 1.0f);
+		RGBA color_cast = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(x) / float(ids.size()), 0.5f, 0.5f, 1.0f);
+		cgv::gui::animate_with_linear_blend(pc.component_color(ids.at(x)), color_cast,3,0,false);
 		post_redraw();		
 	}
 	if (uneven_comp_number)
@@ -1162,7 +1158,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 				//animate with transition to top direction
 				Dir translation = Dir(0,0,1) * max_bb_diagonal + average_middle;
 				cgv::gui::animate_with_linear_blend(pc.component_translation(Ids_source.at(x)), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
-				pc.component_color(Ids_source.at(x)) = RGBA(0.5, 0.5, 0.5, 0.5);
+				cgv::gui::animate_with_linear_blend(pc.component_color(Ids_source.at(x)),RGBA(0.5, 0.5, 0.5, 0.5),3,0,false);
 				post_redraw();
 			}
 		}

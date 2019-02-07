@@ -2,6 +2,7 @@
 
 #include <cgv/base/register.h>
 #include <libs/cgv_gl/gl/gl.h>
+#include "cgv/gui/animate.h"
 
 program_state::program_state()
 {
@@ -18,7 +19,7 @@ program_state::program_state(const std::vector<point_cloud_types::Dir>& translat
 	old_color = old_color_;
 	even_older_color = even_older_color_;
 }
-
+#ifdef DEBUG
 void program_state::put_back_state(point_cloud & pcs, constructed_set &picked, constructed_set &previous_picked, std::vector<constructed_set> &group_informations_, cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY> &old_color_, cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY> &even_older_color_)
 {
 	int nr_Components = pcs.get_nr_components();
@@ -34,4 +35,21 @@ void program_state::put_back_state(point_cloud & pcs, constructed_set &picked, c
 	old_color_ = old_color;
 	even_older_color_ = even_older_color;
 }
+#else
+void program_state::put_back_state(point_cloud & pcs, constructed_set &picked, constructed_set &previous_picked, std::vector<constructed_set> &group_informations_, cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY> &old_color_, cgv::media::color<float, cgv::media::RGB, cgv::media::OPACITY> &even_older_color_)
+{
+	int nr_Components = pcs.get_nr_components();
+	for (int i = 0; i < nr_Components; ++i)
+	{
+		cgv::gui::animate_with_linear_blend(pcs.component_translation(i), translations.at(i), 3, 0, false);
+		pcs.component_rotation(i) = rotations.at(i);
+		cgv::gui::animate_with_linear_blend(pcs.component_color(i), component_colors.at(i), 3, 0, false);
+	}
+	picked = picked_Group;
+	previous_picked = previous_picked_Group;
+	group_informations_ = group_informations;
+	old_color_ = old_color;
+	even_older_color_ = even_older_color;
+}
+#endif // DEBUG
 
