@@ -76,8 +76,8 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 			icp_thread.detach();
 			return;
 		}
-		//start_ICP();
-		//cgv::gui::trigger::get_current_time()
+		//To smooth animation redraw every hz during icp
+		post_redraw();
 	}
 	if(pending_unite)
 	{
@@ -86,6 +86,11 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 			time_blink_counter = t + 0.5;
 			animate_pending_unite_blink();
 		}
+	}
+	if (seperation_in_process) 
+	{
+		//To smooth animation redraw every hz during seperation
+		post_redraw();
 	}
 }
 
@@ -1024,7 +1029,9 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 
 void vr_point_cloud_aligner::display_reverse_seperation() 
 {
-
+	//That needs to be smoother, because just restoring the last state is too abrupt and looks ugly
+	restore_state(pss_count - 1);
+	post_redraw();
 }
 
 void vr_point_cloud_aligner::seperate_component() 
@@ -1047,7 +1054,9 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	}
 	if (!pc.has_normals())
 	{	
-		pc.create_normals();
+		printf("Normals need to be calculated first!");
+		seperation_in_process = false;
+		return;
 	}
 	//calculate per component average normal to estimate optimal splitting direction
 	std::vector<int> Ids_source = picked_group.get_component_IDs();
@@ -1121,13 +1130,13 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		int lowest_ID = -1;
 		for (int x = 0; x < int(averaged_normal_direction.size());++x)
 		{
-			if (!(matched_ids.find(x) == matched_ids.end()))
+			if (!(matched_ids.find(x) == matched_ids.cend()))
 			{
 				continue;
 			}
 			if (temp_cross_product > (cgv::math::cross(averaged_normal_direction.at(x), basic_vec).length()))
 			{
-				lowest_ID = x;
+				lowest_ID = Ids_source.at(x);
 				temp_cross_product = cgv::math::cross(averaged_normal_direction.at(x), basic_vec).length();
 			}
 		}
@@ -1135,27 +1144,27 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		ids.push_back(lowest_ID);
 		basic_vec = rotation_mat * basic_vec;
 	}
-	bool used_top = false;
 	//step 2 apply all the changes by animation and if the number is uneven find the uneven scan and lift it
-	for (int x = 0; x < int(Ids_source.size()); ++x)
+	for (int x = 0; x < int(ids.size()); ++x)
 	{
-		if ((matched_ids.find(x) == matched_ids.end()))
+		//animate with transition to rotated direction
+		Dir translation = rotated_directions.at(x) * max_bb_diagonal + average_middle;
+		cgv::gui::animate_with_linear_blend(pc.component_translation(ids.at(x)), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
+		pc.component_color(ids.at(x)) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(x) / float(ids.size()), 0.5f, 0.5f, 1.0f);
+		post_redraw();		
+	}
+	if (uneven_comp_number)
+	{
+		for (int x = 0; x < Ids_source.size(); ++x)
 		{
-			//animate with transition to top (0,0,1)
-			Dir translation = Dir(0, 0, 1) * max_bb_diagonal + average_middle;
-			cgv::gui::animate_with_linear_blend(pc.component_translation(Ids_source.at(ids.at(x))), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
-			used_top = true;
-			post_redraw();
-		}
-		else
-		{
-			int a = x;
-			if (used_top)
-				a -= 1;
-			//animate with transition to rotated direction
-			Dir translation = rotated_directions.at(a) * max_bb_diagonal + average_middle;
-			cgv::gui::animate_with_linear_blend(pc.component_translation(Ids_source.at(ids.at(a))), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
-			post_redraw();
+			if (matched_ids.find(Ids_source.at(x)) == matched_ids.cend())
+			{
+				//animate with transition to top direction
+				Dir translation = Dir(0,0,1) * max_bb_diagonal + average_middle;
+				cgv::gui::animate_with_linear_blend(pc.component_translation(Ids_source.at(x)), Dir(translation.x(), translation.y(), translation.z()), 3, 0, false);
+				pc.component_color(Ids_source.at(x)) = RGBA(0.5, 0.5, 0.5, 0.5);
+				post_redraw();
+			}
 		}
 	}
 	//step 3 cleanup and post redraw
