@@ -55,7 +55,8 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
 	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
-
+	picked_component = -1;
+	picked_component_valid = false;
 	oldColor = RGBA(1, 1, 1, 1);
 	even_older_color = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
@@ -590,7 +591,7 @@ bool vr_point_cloud_aligner::ensure_view_pointer()
 
 void vr_point_cloud_aligner::try_component_pick()
 {
-	if (transformation_lock) 
+	if (transformation_lock && !seperation_in_process) 
 	{
 		return;
 	}
@@ -622,12 +623,17 @@ void vr_point_cloud_aligner::try_component_pick()
 			{
 				if (z_factor_min > intersectedPoints.at(i))
 				{
-					min_component = i;
+					min_component = component_NR.at(i);
 					z_factor_min = intersectedPoints.at(i);
 				}
 			}
+			picked_component = min_component;
+			picked_component_valid = true;
 		}
-		///WORK IN PROGRESS
+		else
+		{
+			//Do nothing
+		}
 	}
 }
 
@@ -1024,14 +1030,87 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 
 void vr_point_cloud_aligner::display_reverse_seperation() 
 {
-	//That needs to be smoother, because just restoring the last state is too abrupt and looks ugly
 	restore_state(pss_count - 1);
 	post_redraw();
 }
 
 void vr_point_cloud_aligner::seperate_component() 
 {
-
+	/// WORK IN PROGRESS -> KNOWN BUG: Colors do not update as expected after updating. (use pointers for picked components?)
+	if (!picked_group.find_component_ID(picked_component))
+	{
+		printf("Critical error in seperation process!\n");
+		picked_component_valid = false;
+	}
+	else 
+	{
+		display_reverse_seperation();
+		for (int a = 0; a < sets.size(); ++a)
+		{
+			if (sets.at(a).get_ID() == picked_group.get_ID())
+			{
+				sets.at(a).seperate_component(picked_component);
+				//Update local variable!
+				picked_group = sets.at(a);
+			}
+		}
+		int lowest_available_ID = 0;
+		for (int x = 0; x < sets.size(); ++x)
+		{
+			for (int y = 0; y < sets.size(); ++y)
+			{
+				if (sets.at(y).get_ID() == lowest_available_ID)
+				{
+					++lowest_available_ID;
+					break;
+				}
+			}
+		}
+		std::vector<int> newly_vec;
+		newly_vec.push_back(picked_component);
+		constructed_set newly_seprated_single_component_set(newly_vec, lowest_available_ID);
+		sets.push_back(newly_seprated_single_component_set);
+		///Push it up to see it better and dont start before old animation is finished
+		cgv::gui::animate_with_linear_blend(pc.component_translation(picked_component), pc.component_translation(picked_component) + Dir(0,0,1), 3, 3, false);
+		//Autoselect new component mostly code from the picking algorithm
+		printf("Picked a new created group\n");
+		//reset colors of older group
+		if (previous_picked_group.get_ID() >= 0)
+		{
+			std::vector<int> toChange = previous_picked_group.get_component_IDs();
+			for (int x = 0; x < int(toChange.size()); ++x)
+			{
+				pc.component_color(toChange.at(x)) = even_older_color;
+			}
+		}
+		//reset colors of old group
+		if (picked_group.get_ID() >= 0)
+		{
+			std::vector<int> toChange = picked_group.get_component_IDs();
+			for (int x = 0; x < int(toChange.size()); ++x)
+			{
+				pc.component_color(toChange.at(x)) = RGBA(0.5, 0, 0, 1);
+			}
+		}
+		//set picked to previous picked
+		previous_picked_group = picked_group;
+		//save back older color
+		even_older_color = oldColor;
+		//Save back old color (which is a new created one hence the component has been created new by seperation
+		oldColor = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(newly_seprated_single_component_set.get_ID()) / float(sets.size()), 0.5f, 0.5f, 1.0f);
+		//change active group to red
+		std::vector<int> toChange = newly_seprated_single_component_set.get_component_IDs();
+		for (int x = 0; x < int(toChange.size()); ++x)
+		{
+			pc.component_color(toChange.at(x)) = RGBA(1, 0, 0, 1);
+		}
+		//Save pick
+		picked_group = newly_seprated_single_component_set;
+		push_back_state();
+		subsample_changed = true;
+		picked_component_valid = false;
+		post_redraw();
+	}
 }
 
 void vr_point_cloud_aligner::display_seperation_selection()
@@ -1197,7 +1276,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				}
 				else if (seperation_in_process)
 				{
-					if (seperation_id > -1)
+					if (picked_component_valid)
 					{
 						seperation_in_process = false;
 						seperate_component();

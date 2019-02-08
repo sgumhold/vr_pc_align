@@ -10,6 +10,7 @@ public:
 	constructed_set(std::vector<int> init, int ID);
 	~constructed_set();
 	void unite(constructed_set other);
+	void seperate_component(int to_Seperate);
 	bool find_component_ID(int toFind);
 	std::vector<int> get_component_IDs();
 	int get_ID();

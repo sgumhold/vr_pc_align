@@ -25,6 +25,19 @@ void constructed_set::unite(constructed_set other)
 	//other.~constructed_set;
 }
 
+void constructed_set::seperate_component(int to_Seperate)
+{
+	if (!this->find_component_ID(to_Seperate))
+		printf("Internal Error");
+	std::vector<int> new_Ids;
+	for (int x = 0; x < int(this->scan_IDs.size()); ++x)
+	{
+		if (to_Seperate != scan_IDs.at(x))
+			new_Ids.push_back(scan_IDs.at(x));
+	}
+	this->scan_IDs = new_Ids;
+}
+
 bool constructed_set::find_component_ID(int toFind)
 {
 	for (int x = 0; x < scan_IDs.size(); ++x) 

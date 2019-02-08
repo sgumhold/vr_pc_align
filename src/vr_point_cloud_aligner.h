@@ -47,6 +47,10 @@ private:
 	constructed_set picked_group;
 	///This is the same as previous picked component
 	constructed_set previous_picked_group;
+	///This is a single component picked to seperate it from its group
+	int picked_component;
+	///This is the flag showing its valid
+	bool picked_component_valid;
 
 	///safes latest programstackstate
 	void push_back_state();
