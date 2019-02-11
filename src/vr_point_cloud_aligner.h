@@ -9,6 +9,7 @@
 #include "constructed_set.h"
 #include "program_state.h"
 #include "../sparseicp/ICP.h"
+#include <list>
 
 #include "lib_begin.h"
 
@@ -43,15 +44,18 @@ private:
 	RGBA oldColor;
 	RGBA even_older_color;
 
+	///a constant variable to hold a empty constructed set for pointer resetting
+	constructed_set global_placeholder_set;
 	///This shows the group the picked component belongs to, thus applieng all transformations to the group
-	constructed_set picked_group;
+	constructed_set* picked_group;
 	///This is the same as previous picked component
-	constructed_set previous_picked_group;
+	constructed_set* previous_picked_group;
 	///This is a single component picked to seperate it from its group
 	int picked_component;
 	///This is the flag showing its valid
 	bool picked_component_valid;
-
+	///This variable stores the last color of a picked component
+	RGBA picked_component_color;
 	///safes latest programstackstate
 	void push_back_state();
 	///restores programstaskstate at point i
@@ -82,7 +86,7 @@ private:
 	void subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, Eigen::Matrix<double, 3, Eigen::Dynamic> &target, int subsampling_range);
 	
 	/// stores information about aligned sets of scans
-	std::vector<constructed_set> sets;
+	std::list<constructed_set> sets;
 
 	/// homogeneous matrix used to unproject mouse locations
 	cgv::render::context::mat_type DPV;
