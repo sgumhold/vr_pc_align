@@ -25,6 +25,8 @@
 
 #define ANIMATION_DURATION 2
 
+#define TABLE_HEIGT 1.5
+
 #ifdef _DEBUG
 #define SAMPLE_COUNT 100
 #else 
@@ -483,6 +485,70 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 		}
 	}
 	printf("Subsampled source set!");
+}
+
+float vr_point_cloud_aligner::find_deepest_BB_point()
+{
+	std::vector<Pnt> transformed_Pnts;
+	for (int x = 0; x < int(pc.get_nr_components()); ++x)
+	{
+		if (!user_modified.at(x))
+			continue;
+		Box current_box = pc.box(x);
+		for (int y = 0; y < 8; ++y)
+		{
+			transformed_Pnts.push_back(transform_to_global(current_box.get_corner(y), pc.component_translation(x), pc.component_rotation(x)));
+		}
+	}
+	float lowest_Z = INFINITY;
+	for(int x = 0; x < int(transformed_Pnts.size()); ++x)
+	{
+		if (lowest_Z > transformed_Pnts.at(x).z())
+		{
+			lowest_Z = transformed_Pnts.at(x).z();
+		}
+	}
+	return lowest_Z;
+}
+
+void vr_point_cloud_aligner::repostion_above_table()
+{
+	Pnt average_middle(0, 0, 0);
+	int nr_off_all_points = 0;
+	std::vector<component_info> component_info_stack;
+	for (int x = 0; x<int(pc.get_nr_components()); ++x)
+	{
+		if (user_modified.at(x))
+			component_info_stack.push_back(pc.component_point_range(x));
+	}
+	for (unsigned int current_component = 0; current_component < component_info_stack.size(); ++current_component)
+	{
+		component_info a = component_info_stack.at(current_component);
+		Dir current_normal(0, 0, 0);
+		for (unsigned int current_adress = a.index_of_first_point; current_adress < a.index_of_first_point + a.nr_points; ++current_adress)
+		{
+			average_middle += pc.transformed_pnt(current_adress);
+		}
+		nr_off_all_points += a.nr_points;
+	}
+	//needed for a middle position of the scan
+	average_middle /= nr_off_all_points;
+	Dir xy_addition = Pnt(2.5, 2.5, 0) - average_middle;
+	//needed for the height, so that no point is below the tables surface
+	float deepest_z = find_deepest_BB_point();
+	float z_addition = 0;
+	if (deepest_z < TABLE_HEIGT)
+	{
+		z_addition = TABLE_HEIGT - deepest_z;
+	}
+	for (int x = 0; x < int(pc.get_nr_components()); ++x)
+	{
+		if (user_modified.at(x))
+		{
+			pc.component_translation(x) = pc.component_translation(x) + Dir(xy_addition.x(), xy_addition.y(), z_addition);
+		}
+	}
+	push_back_state();
 }
 
 void vr_point_cloud_aligner::start_ICP()
@@ -990,6 +1056,13 @@ point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in,
 	return result;
 }
 
+point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_global(const Pnt& in, const Pnt& local_translation, const Qat& local_rotation)
+{
+	//	Pnt global_intersection_point = box_translation + box_rotation.apply(local_result);
+	Pnt result = local_translation + local_rotation.apply(in);
+	return result;
+}
+
 interval vr_point_cloud_aligner::calculate_intersectionintervall(float rayStart, float maxBoxCoord1, float maxBoxCoord2, float raydir)
 {
 	//X0 = px + t* x vx
@@ -1326,7 +1399,14 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					post_redraw();
 				}
 				return true;
+			case 'T':
+				if (!transformation_lock)
+				{
+					repostion_above_table();
+				}
+				return true;
 			}
+
 		}
 		else if (ke.get_action() == cgv::gui::KA_RELEASE) 
 		{

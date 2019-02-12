@@ -85,6 +85,12 @@ private:
 	///Subsamples point clouds to given Resolution, can unite multiple pointclouds and draft a subsample from their points
 	void subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, Eigen::Matrix<double, 3, Eigen::Dynamic> &target, int subsampling_range);
 	
+	///A helper function that finds the lowest transformed BB edge of all scans in their current position
+	float find_deepest_BB_point();
+
+	///This function repositions the scans above the centre table
+	void repostion_above_table();
+
 	/// stores information about aligned sets of scans
 	std::list<constructed_set> sets;
 
@@ -194,7 +200,9 @@ public:
 
 	/// transforms a rotation and translation from global to local coordinates of a given Point
 	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Pnt & local_translation, const Qat & local_rotation);
-	
+	/// transforms a rotation and translation from local to global coordinates of a given Point
+	point_cloud_types::Pnt transform_to_global(const Pnt & in, const Pnt & local_translation, const Qat & local_rotation);
+
 	//@}
 	interval calculate_intersectionintervall(float rayStart, float maxBoxCoord1, float maxBoxCoord2, float raydir);
 	
