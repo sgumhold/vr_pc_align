@@ -1208,17 +1208,18 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	}
 	rotation_degree = 360 / rotation_steps;
 
-	double needed_lentgth = max_bb_diagonal * 1.5;
-	needed_lentgth =  needed_lentgth / (2 * sin(rotation_degree / 2)) ;
+	double needed_lentgth = max_bb_diagonal * 1.1;
+	needed_lentgth =  needed_lentgth / (2 * sin(rotation_degree / 2 * std::_Pi / 180.0)) ;
 	needed_lentgth *= needed_lentgth;
 	needed_lentgth = sqrt(needed_lentgth);
-
+	
+	//A rotation matrix that rotates for x degrees. Do not forget to multiply PI/180!
 	cgv::math::fmat<float,3,3> rotation_mat;
-	rotation_mat(0, 0) = cos(rotation_degree);
-	rotation_mat(0, 1) = -sin(rotation_degree);
+	rotation_mat(0, 0) = cos(rotation_degree * std::_Pi / 180.0);
+	rotation_mat(0, 1) = -sin(rotation_degree * std::_Pi / 180.0);
 	rotation_mat(0, 2) = 0;
-	rotation_mat(1, 0) = sin(rotation_degree);
-	rotation_mat(1, 1) = cos(rotation_degree);
+	rotation_mat(1, 0) = sin(rotation_degree * std::_Pi / 180.0);
+	rotation_mat(1, 1) = cos(rotation_degree * std::_Pi / 180.0);
 	rotation_mat(1, 2) = 0;
 	rotation_mat(2, 0) = 0;
 	rotation_mat(2, 1) = 0;
@@ -1297,6 +1298,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				else if (seperation_in_process)
 				{
 					seperation_in_process = false;
+					transformation_lock = false;
 					display_reverse_seperation();
 				}
 				return true;			
