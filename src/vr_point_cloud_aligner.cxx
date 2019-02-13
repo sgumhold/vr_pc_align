@@ -835,7 +835,7 @@ void vr_point_cloud_aligner::try_group_pick()
 void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 {
 	// store current transformation matrix from world to device coordinates
-	DPV = ctx.get_DPV();
+	DPV = ctx.get_modelview_projection_device_matrix();
 
 	point_cloud_interactable::draw(ctx);
 
@@ -1095,10 +1095,7 @@ interval vr_point_cloud_aligner::calculate_intersectionintervall(float rayStart,
 
 void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int x, int y)
 {
-	// check if a matrix for unprojection is available
-	if (DPV.size() == 0)
-		return;
-	
+
 	double z = ctx.get_z_D(x, y);
 	// check for background
 	if (z > 0.99999999) {
@@ -1108,16 +1105,9 @@ void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int 
 	}
 	else
 	{
-		dmat4 convertedDPV;
-		for (int x = 0; x < 4; ++x)
-		{
-			for (int y = 0; y < 4; ++y)
-			{
-				convertedDPV(x, y) = DPV(x, y);
-			}
-		}
+
 		have_picked_point = true;
-		picked_point = Pnt((&ctx.get_point_W(x, y, convertedDPV))[0]);
+		picked_point = Pnt((&ctx.get_point_W(x, y, DPV))[0]);
 		post_redraw();
 	}
 }

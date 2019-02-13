@@ -95,7 +95,7 @@ private:
 	std::list<constructed_set> sets;
 
 	/// homogeneous matrix used to unproject mouse locations
-	cgv::render::context::mat_type DPV;
+	dmat4 DPV;
 	/// whether a picked point is available
 	bool have_picked_point;
 	/// position of picked point
