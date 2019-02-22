@@ -573,8 +573,11 @@ void vr_point_cloud_aligner::start_ICP()
 	ICP::Parameters par;
 	par.p = .5;
 	par.max_icp = 100;
+	auto tic = std::chrono::steady_clock::now();
 	ICP::point_to_point(vertices_source, vertices_target, par);
-	printf("ICP finished\n");
+	auto toc = std::chrono::steady_clock::now();
+	double time_ms = std::chrono::duration <double, std::milli>(toc - tic).count();
+	printf("ICP finished, runtime: %f \n",time_ms);
 	///Now the vertices_source is recalculated and overwritten. we now need to calculate back the actual rotation and translation.
 	///This should be now possible through using some points in the source cloud that have been transformed. Because of correspondencies there is now a closed solution form
 	///Using this method the first 4 points should be enough to solve this. The test case now uses all points.
@@ -908,6 +911,8 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 
 void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 {
+	//Important step!
+	sets.clear();
 	///using filestream to read
 	std::ifstream inFile;
 	inFile.open(projectFile);
@@ -1564,6 +1569,7 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 		if (member_ptr == &pc.component_rotation(i) || member_ptr == &pc.component_translation(i))
 		{
 			user_modified.at(i) = true;
+			push_back_state();
 			break;
 		}	
 	}
