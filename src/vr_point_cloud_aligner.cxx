@@ -25,7 +25,7 @@
 
 #define ANIMATION_DURATION 2
 
-#define TABLE_HEIGT 1.5
+#define TABLE_HEIGT 1
 
 #ifdef _DEBUG
 #define SAMPLE_COUNT 100
@@ -100,15 +100,14 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room_colors.clear();
 	Box room;
 	float x_room_min = 0, y_room_min = 0, z_room_min = float(-.2);
-	float lineCount = 20;
 	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
-	room.add_point(Pnt(Crd(5), Crd(5), Crd(0)));
+	room.add_point(Pnt(Crd(3.5), Crd(3.5), Crd(0)));
 	room_boxes.push_back(room);
 	room_colors.push_back(generate_a_valid_color(3));
 
 	Box wall1;
 	wall1.add_point(Pnt(Crd(x_room_min - 0.2), Crd(y_room_min), Crd(z_room_min)));
-	wall1.add_point(Pnt(Crd(x_room_min), Crd(5), Crd(5)));
+	wall1.add_point(Pnt(Crd(x_room_min), Crd(3.5), Crd(3.5)));
 	room_boxes.push_back(wall1);
 	room_colors.push_back(generate_a_valid_color(3));
 
@@ -119,36 +118,36 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	Box tableLeg3;
 	Box tableLeg4;
 
-	float tableTopCorner1 = 1.5, tableTopCorner2 = 3;
-	tableTop.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
-	tableTop.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.5)));
+	float tableTopCorner1 = 1, tableTopCorner2 = 2.5;
+	tableTop.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(TABLE_HEIGT-0.2)));
+	tableTop.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(TABLE_HEIGT)));
 	room_boxes.push_back(tableTop);
 	room_colors.push_back(generate_a_valid_color(1));
 
 	//Maybe instanciate the leg with different coordinates?
-	tableLeg1.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(1.3)));
+	tableLeg1.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(TABLE_HEIGT-0.2)));
 	tableLeg1.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + .2), Crd(0)));
 	room_boxes.push_back(tableLeg1);
 	room_colors.push_back(generate_a_valid_color(2));
 
-	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.3), Crd(tableTopCorner1), Crd(1.3)));
+	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.3), Crd(tableTopCorner1), Crd(TABLE_HEIGT-0.2)));
 	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.5), Crd(tableTopCorner1 + 0.2), Crd(0)));
 	room_boxes.push_back(tableLeg2);
 	room_colors.push_back(generate_a_valid_color(2));
 
-	tableLeg3.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1 + 1.3), Crd(1.3)));
+	tableLeg3.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1 + 1.3), Crd(TABLE_HEIGT-0.2)));
 	tableLeg3.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + 1.5), Crd(0)));
 	room_boxes.push_back(tableLeg3);
 	room_colors.push_back(generate_a_valid_color(2));
 
-	tableLeg4.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(1.3)));
+	tableLeg4.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(TABLE_HEIGT-0.2)));
 	tableLeg4.add_point(Pnt(Crd(tableTopCorner2 - 0.2), Crd(tableTopCorner2 - .2), Crd(0)));
 	room_boxes.push_back(tableLeg4);
 	room_colors.push_back(generate_a_valid_color(2));
 
 	Box line;
-	line.add_point(Pnt(Crd(x_room_min), Crd(0), Crd(4)));
-	line.add_point(Pnt(Crd(x_room_min + .2), Crd(5), Crd(4.1)));
+	line.add_point(Pnt(Crd(x_room_min), Crd(0), Crd(1.8)));
+	line.add_point(Pnt(Crd(x_room_min + .05), Crd(3.5), Crd(2)));
 	room_boxes.push_back(line);
 	room_colors.push_back(generate_a_valid_color(1));
 }
@@ -241,10 +240,10 @@ void vr_point_cloud_aligner::position_scans()
 	{
 		for (unsigned int i = 0; i < pc.get_nr_components(); i++)
 		{
-			float x = float(5.1) / nr;
+			float x = float(3.5) / nr;
 			if (!user_modified.at(i))
 			{
-				pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));
+				pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(1.8));
 				pc.component_rotation(i) = (defaultFacing);
 			}
 
@@ -533,7 +532,7 @@ void vr_point_cloud_aligner::repostion_above_table()
 	}
 	//needed for a middle position of the scan
 	average_middle /= nr_off_all_points;
-	Dir xy_addition = Pnt(2.5, 2.5, 0) - average_middle;
+	Dir xy_addition = Pnt(1.75, 1.75, 0) - average_middle;
 	//needed for the height, so that no point is below the tables surface
 	float deepest_z = find_deepest_BB_point();
 	float z_addition = 0;
@@ -1528,8 +1527,8 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 	{
 		for (int i = 0; i < nr; i++)
 		{
-			float x = float(5.1 / nr);
-			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(3.8));				
+			float x = float(3.5 / nr);
+			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(1.8));				
 			pc.component_rotation(i) = defaultFacing;
 		}
 	}
