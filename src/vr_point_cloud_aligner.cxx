@@ -91,6 +91,8 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	connect(cgv::gui::ref_vr_server().on_device_change, this, &vr_point_cloud_aligner::on_device_change);
 	cgv::gui::connect_gamepad_server();
 
+	drag_active = false;
+	vr_view_ptr = 0;
 }
 
 void vr_point_cloud_aligner::timer_event(double t, double dt)
@@ -778,6 +780,7 @@ void vr_point_cloud_aligner::try_group_pick()
 	{
 		return;
 	}
+
 	//check for box intersections
 	if (have_picked_point)
 	{
@@ -896,7 +899,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 
 	// draw array of boxes with renderer from gl_point_cloud_drawable and my box_render_style
 	b_renderer.set_render_style(box_render_style);
-
+	///This is now not needed, the viewpoint update is now from controller pose!
 	if (have_view_ray) {
 		glLineWidth(5);
 		glColor3f(1, 1, 0);
@@ -1152,21 +1155,25 @@ interval vr_point_cloud_aligner::calculate_intersectionintervall(float rayStart,
 
 void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int x, int y)
 {
+	have_picked_point = true;
+	const vr::vr_kit_state* state_ptr = vr_view_ptr->get_current_vr_state();
+	Pnt origin(state_ptr->controller[0].pose[9], state_ptr->controller[0].pose[10], state_ptr->controller[0].pose[11]);
+	picked_point = origin + Pnt(state_ptr->controller[0].pose[9], 0, 0);
+	
+	//double z = ctx.get_z_D(x, y);
+	//// check for background
+	//if (z > 0.99999999) {
+	//	if (have_picked_point)
+	//		post_redraw();
+	//	have_picked_point = false;
+	//}
+	//else
+	//{
 
-	double z = ctx.get_z_D(x, y);
-	// check for background
-	if (z > 0.99999999) {
-		if (have_picked_point)
-			post_redraw();
-		have_picked_point = false;
-	}
-	else
-	{
-
-		have_picked_point = true;
-		picked_point = Pnt((&ctx.get_point_W(x, y, DPV))[0]);
-		post_redraw();
-	}
+	//	have_picked_point = true;
+	//	picked_point = Pnt((&ctx.get_point_W(x, y, DPV))[0]);
+	//	post_redraw();
+	//}
 }
 
 void vr_point_cloud_aligner::display_reverse_seperation() 
@@ -1399,7 +1406,41 @@ void vr_point_cloud_aligner::display_seperation_selection()
 
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 {
-	if (e.get_kind() == cgv::gui::EID_KEY) {
+	if ((e.get_flags() & cgv::gui::EF_VR) != 0)
+	{
+		switch (e.get_kind())
+		{
+			case cgv::gui::EID_KEY:
+			{
+				cgv::gui::vr_key_event& vrke = static_cast<cgv::gui::vr_key_event&>(e);
+				if (vrke.get_action() == cgv::gui::KA_PRESS || vrke.get_action() == cgv::gui::KA_REPEAT)
+				{
+					switch (vrke.get_key())
+					{
+					case vr::VR_LEFT_BUTTON0:
+						try_group_pick();
+						printf("say something\n");
+						return true;
+					}
+				}
+			}
+			case cgv::gui::VRE_POSE:
+			{
+				cgv::gui::vr_pose_event& vrpo = static_cast<cgv::gui::vr_pose_event&>(e);
+				//How controller 1 is the left handed controller!
+				if (vrpo.get_trackable_index() == 2)
+				{
+					last_view_point = vrpo.get_position();
+					Dir pick_dir = vrpo.get_state().controller->pose[0];
+					picked_point = last_view_point + pick_dir * 5;
+				}
+				if (drag_active) {
+					//drag_scan(vrpo.get_rotation_matrix(),vrpo.get_position()-vrpo.get_last_position());
+				}
+			}
+		}
+	}
+	else if (e.get_kind() == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = static_cast<cgv::gui::key_event&>(e);
 		if (ke.get_action() == cgv::gui::KA_PRESS || ke.get_action() == cgv::gui::KA_REPEAT) {
 			switch (ke.get_key()) {
@@ -1524,6 +1565,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 		}
 	}
 
+
 	// pass on remaining events to base class
 	return point_cloud_interactable::handle(e);
 }
@@ -1585,7 +1627,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 		for (int i = 0; i < nr; i++)
 		{
 			float x = float(x_room_max / nr);
-			pc.component_translation(i).set(x_room_min + 0.02, Crd(1.8),Crd(i * x));
+			pc.component_translation(i).set(x_room_min + 0.2, Crd(1.8),Crd(i * x));
 			pc.component_rotation(i) = defaultFacing;
 		}
 	}
@@ -1628,6 +1670,11 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 
 	// always call base class implementation to post_redraw and update_member in gui
 	point_cloud_interactable::on_set(member_ptr);
+}
+
+void vr_point_cloud_aligner::drag_scan()
+{
+	printf("Not yet implemented!\n");
 }
 
 /// register on device change events

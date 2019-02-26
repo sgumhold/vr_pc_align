@@ -154,6 +154,14 @@ private:
 	///The actual uniting function
 	void unite(bool unite);
 
+	///indicates that a scan is dragged by the controller at the moment
+	bool drag_active;
+	///current drag position
+	Pnt current_drag_position;
+	Dir current_drag_x_axis;
+	Dir current_drag_y_axis;
+	Dir current_drag_z_axis;
+
 protected:
 	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
 	//@{
@@ -241,6 +249,7 @@ public:
 	void reset_componets_transformations();
 	/// used to update all dependent variables in case of changes to member variables
 	void on_set(void* member_ptr);
+	void drag_scan();
 	void on_device_change(void * kit_handle, bool attach);
 	/// user interface creation
 	void create_gui();
