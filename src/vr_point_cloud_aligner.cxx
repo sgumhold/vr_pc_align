@@ -26,6 +26,13 @@
 #define ANIMATION_DURATION 2
 
 #define TABLE_HEIGT 1
+#define x_room_min -1.75
+#define y_room_min 0
+#define z_room_min -1.75
+#define x_room_max 1.75
+#define y_room_max 7
+#define z_room_max 1.75
+
 
 #ifdef _DEBUG
 #define SAMPLE_COUNT 100
@@ -57,6 +64,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	pss_count = 0;
 	time_blink_counter = double(0);
 	generate_room_boxes();
+	construct_environment(0.2f, 3 * 5, 3 * 7, 3, 3.5, 3.5, 7);
 	box_render_style.map_color_to_material = cgv::render::MS_FRONT_AND_BACK;
 	box_render_style.culling_mode = cgv::render::CM_BACKFACE;
 	box_render_style.illumination_mode = cgv::render::IM_TWO_SIDED;
@@ -97,15 +105,14 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room_boxes.clear();
 	room_colors.clear();
 	Box room;
-	float x_room_min = 0, y_room_min = 0, z_room_min = float(-.2);
-	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
-	room.add_point(Pnt(Crd(3.5), Crd(3.5), Crd(0)));
+	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min - 0.2), Crd(z_room_min)));
+	room.add_point(Pnt(Crd(x_room_max), Crd(y_room_min), Crd(z_room_max)));
 	room_boxes.push_back(room);
 	room_colors.push_back(generate_a_valid_color(3));
 
 	Box wall1;
 	wall1.add_point(Pnt(Crd(x_room_min - 0.2), Crd(y_room_min), Crd(z_room_min)));
-	wall1.add_point(Pnt(Crd(x_room_min), Crd(3.5), Crd(3.5)));
+	wall1.add_point(Pnt(Crd(x_room_min), Crd(y_room_max), Crd(z_room_max)));
 	room_boxes.push_back(wall1);
 	room_colors.push_back(generate_a_valid_color(3));
 
@@ -116,38 +123,58 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	Box tableLeg3;
 	Box tableLeg4;
 
-	float tableTopCorner1 = 1, tableTopCorner2 = 2.5;
-	tableTop.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(TABLE_HEIGT-0.2)));
-	tableTop.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(TABLE_HEIGT)));
+	float tableTopCorner1 = x_room_min+1, tableTopCorner2 = x_room_max-1;
+	tableTop.add_point(Pnt(Crd(tableTopCorner1), Crd(TABLE_HEIGT - 0.2), Crd(tableTopCorner1) ));
+	tableTop.add_point(Pnt(Crd(tableTopCorner2), Crd(TABLE_HEIGT), Crd(tableTopCorner2)));
 	room_boxes.push_back(tableTop);
 	room_colors.push_back(generate_a_valid_color(1));
 
 	//Maybe instanciate the leg with different coordinates?
-	tableLeg1.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1), Crd(TABLE_HEIGT-0.2)));
-	tableLeg1.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + .2), Crd(0)));
+	tableLeg1.add_point(Pnt(Crd(tableTopCorner1), Crd(TABLE_HEIGT - 0.2), Crd(tableTopCorner1)));
+	tableLeg1.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(0), Crd(tableTopCorner1 + .2)));
 	room_boxes.push_back(tableLeg1);
 	room_colors.push_back(generate_a_valid_color(2));
 
-	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.3), Crd(tableTopCorner1), Crd(TABLE_HEIGT-0.2)));
-	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.5), Crd(tableTopCorner1 + 0.2), Crd(0)));
+	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.3), Crd(TABLE_HEIGT - 0.2), Crd(tableTopCorner1)));
+	tableLeg2.add_point(Pnt(Crd(tableTopCorner1 + 1.5), Crd(0), Crd(tableTopCorner1 + 0.2)));
 	room_boxes.push_back(tableLeg2);
 	room_colors.push_back(generate_a_valid_color(2));
 
-	tableLeg3.add_point(Pnt(Crd(tableTopCorner1), Crd(tableTopCorner1 + 1.3), Crd(TABLE_HEIGT-0.2)));
-	tableLeg3.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(tableTopCorner1 + 1.5), Crd(0)));
+	tableLeg3.add_point(Pnt(Crd(tableTopCorner1), Crd(TABLE_HEIGT - 0.2), Crd(tableTopCorner1 + 1.3) ));
+	tableLeg3.add_point(Pnt(Crd(tableTopCorner1 + .2), Crd(0), Crd(tableTopCorner1 + 1.5) ));
 	room_boxes.push_back(tableLeg3);
 	room_colors.push_back(generate_a_valid_color(2));
 
-	tableLeg4.add_point(Pnt(Crd(tableTopCorner2), Crd(tableTopCorner2), Crd(TABLE_HEIGT-0.2)));
-	tableLeg4.add_point(Pnt(Crd(tableTopCorner2 - 0.2), Crd(tableTopCorner2 - .2), Crd(0)));
+	tableLeg4.add_point(Pnt(Crd(tableTopCorner2), Crd(TABLE_HEIGT - 0.2), Crd(tableTopCorner2)));
+	tableLeg4.add_point(Pnt(Crd(tableTopCorner2 - 0.2), Crd(0), Crd(tableTopCorner2 - .2)));
 	room_boxes.push_back(tableLeg4);
 	room_colors.push_back(generate_a_valid_color(2));
 
 	Box line;
-	line.add_point(Pnt(Crd(x_room_min), Crd(0), Crd(1.8)));
-	line.add_point(Pnt(Crd(x_room_min + .05), Crd(3.5), Crd(2)));
+	line.add_point(Pnt(Crd(x_room_min), Crd(1.8), z_room_min));
+	line.add_point(Pnt(Crd(x_room_min + .05), Crd(2), z_room_max));
 	room_boxes.push_back(line);
 	room_colors.push_back(generate_a_valid_color(1));
+}
+
+/// construct boxes for environment
+void vr_point_cloud_aligner::construct_environment(float s, float ew, float ed, float eh, float w, float d, float h)
+{
+	std::default_random_engine generator;
+	std::uniform_real_distribution<float> distribution(0, 1);
+	unsigned n = unsigned(ew / s);
+	unsigned m = unsigned(ed / s);
+	for (unsigned i = 0; i < n; ++i) {
+		float x = i * s - 0.5f*ew;
+		for (unsigned j = 0; j < m; ++j) {
+			float z = j * s - 0.5f*ed;
+			if ((x + s > -0.5f*w && x < 0.5f*w) && (z + s > -0.5f*d && z < 0.5f*d))
+				continue;
+			float h = 0.2f*(std::max(abs(x) - 0.5f*w, 0.0f) + std::max(abs(z) - 0.5f*d, 0.0f))*distribution(generator) + 0.1f;
+			room_boxes.push_back(box3(vec3(x, 0, z), vec3(x + s, h, z + s)));
+			room_colors.push_back(rgb(0.2f*distribution(generator) + 0.1f, 0.4f*distribution(generator) + 0.2f, 0.2f*distribution(generator) + 0.1f));
+		}
+	}
 }
 
 std::string vr_point_cloud_aligner::get_type_name() const
@@ -238,10 +265,10 @@ void vr_point_cloud_aligner::position_scans()
 	{
 		for (unsigned int i = 0; i < pc.get_nr_components(); i++)
 		{
-			float x = float(3.5) / nr;
+			float x = float(x_room_max) / nr;
 			if (!user_modified.at(i))
 			{
-				pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(1.8));
+				pc.component_translation(i).set(Crd(x_room_min + 0.2), Crd(1.8), Crd(i * x));
 				pc.component_rotation(i) = (defaultFacing);
 			}
 
@@ -497,15 +524,15 @@ float vr_point_cloud_aligner::find_deepest_BB_point()
 			transformed_Pnts.push_back(transform_to_global(current_box.get_corner(y), pc.component_translation(x), pc.component_rotation(x)));
 		}
 	}
-	float lowest_Z = INFINITY;
+	float lowest_y = INFINITY;
 	for(int x = 0; x < int(transformed_Pnts.size()); ++x)
 	{
-		if (lowest_Z > transformed_Pnts.at(x).z())
+		if (lowest_y > transformed_Pnts.at(x).y())
 		{
-			lowest_Z = transformed_Pnts.at(x).z();
+			lowest_y = transformed_Pnts.at(x).y();
 		}
 	}
-	return lowest_Z;
+	return lowest_y;
 }
 
 void vr_point_cloud_aligner::repostion_above_table()
@@ -530,19 +557,19 @@ void vr_point_cloud_aligner::repostion_above_table()
 	}
 	//needed for a middle position of the scan
 	average_middle /= nr_off_all_points;
-	Dir xy_addition = Pnt(1.75, 1.75, 0) - average_middle;
+	Dir xz_addition = Pnt(0,0,0) - average_middle;
 	//needed for the height, so that no point is below the tables surface
-	float deepest_z = find_deepest_BB_point();
-	float z_addition = 0;
-	if (deepest_z < TABLE_HEIGT)
+	float deepest_y = find_deepest_BB_point();
+	float y_addition = 0;
+	if (deepest_y < TABLE_HEIGT)
 	{
-		z_addition = TABLE_HEIGT - deepest_z;
+		y_addition = TABLE_HEIGT - deepest_y;
 	}
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
 		if (user_modified.at(x))
 		{
-			pc.component_translation(x) = pc.component_translation(x) + Dir(xy_addition.x(), xy_addition.y(), z_addition);
+			pc.component_translation(x) = pc.component_translation(x) + Dir(xz_addition.x(), y_addition, xz_addition.z());
 		}
 	}
 	push_back_state();
@@ -1277,14 +1304,14 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	//A rotation matrix that rotates for x degrees. Do not forget to multiply PI/180!
 	cgv::math::fmat<float,3,3> rotation_mat;
 	rotation_mat(0, 0) = cos(rotation_rad);
-	rotation_mat(0, 1) = -sin(rotation_rad);
-	rotation_mat(0, 2) = 0;
-	rotation_mat(1, 0) = sin(rotation_rad);
-	rotation_mat(1, 1) = cos(rotation_rad);
+	rotation_mat(0, 1) = 0;
+	rotation_mat(0, 2) = sin(rotation_rad);
+	rotation_mat(1, 0) = 0;
+	rotation_mat(1, 1) = 1;
 	rotation_mat(1, 2) = 0;
-	rotation_mat(2, 0) = 0;
+	rotation_mat(2, 0) = -sin(rotation_rad);
 	rotation_mat(2, 1) = 0;
-	rotation_mat(2, 2) = 1;
+	rotation_mat(2, 2) = cos(rotation_rad);;
 	std::vector<Dir> rotated_directions;
 	std::set<int> matched_ids;
 	std::vector<int> ids;
@@ -1331,7 +1358,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 			if (matched_ids.find(ids_of_group.at(x)) == matched_ids.cend())
 			{
 				//animate with transition to top direction
-				Dir translation = (Dir(0,0,1) * needed_lentgth) + average_middle;
+				Dir translation = (Dir(0,1,0) * needed_lentgth) + average_middle;
 				cgv::gui::animate_with_linear_blend(pc.component_translation(ids_of_group.at(x)), Dir(translation.x(), translation.y(), translation.z()), ANIMATION_DURATION, 0, false);
 				cgv::gui::animate_with_linear_blend(pc.component_color(ids_of_group.at(x)),RGBA(0.5, 0.5, 0.5, 0.5), ANIMATION_DURATION,0,false);
 				post_redraw();
@@ -1529,8 +1556,8 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 	{
 		for (int i = 0; i < nr; i++)
 		{
-			float x = float(3.5 / nr);
-			pc.component_translation(i).set(Crd(0.2), Crd(i * x), Crd(1.8));				
+			float x = float(x_room_max / nr);
+			pc.component_translation(i).set(x_room_min + 0.02, Crd(1.8),Crd(i * x));
 			pc.component_rotation(i) = defaultFacing;
 		}
 	}

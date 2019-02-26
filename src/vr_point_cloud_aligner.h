@@ -170,6 +170,8 @@ public:
 
 	void timer_event(double t, double dt);
 
+	void construct_environment(float s, float ew, float ed, float eh, float w, float d, float h);
+
 	//**@name self reflection of class */
 	//@{
 	/// return type name of point_cloud_viewer
