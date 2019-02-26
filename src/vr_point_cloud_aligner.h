@@ -10,6 +10,10 @@
 #include "program_state.h"
 #include "../sparseicp/ICP.h"
 #include <list>
+// these are the vr specific headers
+#include <vr/vr_driver.h>
+#include <cg_vr/vr_server.h>
+#include <vr_view_interactor.h>
 
 #include "lib_begin.h"
 
@@ -17,7 +21,7 @@
 /** the point cloud view adds a gui to the gl_point_cloud_drawable_base and adds
     some basic processing like normal computation as well as some debug rendering
 	of the neighbor graph*/
-class CGV_API vr_point_cloud_aligner : public point_cloud_interactable  
+class CGV_API vr_point_cloud_aligner : public point_cloud_interactable
 {
 protected:
 
@@ -30,6 +34,17 @@ protected:
 
 	///flag for the icp is in process
 	bool icp_executing;
+
+	// keep deadzone and precision vector for left controller
+	cgv::gui::vr_server::vec_flt_flt left_deadzone_and_precision;
+	// store handle to vr kit of which left deadzone and precision is configured
+	void* last_kit_handle;
+
+	// length of to be rendered rays
+	float ray_length;
+
+	// keep reference to vr_view_interactor
+	vr_view_interactor* vr_view_ptr;
 
 private:
 	std::vector<Box> room_boxes;
@@ -226,6 +241,7 @@ public:
 	void reset_componets_transformations();
 	/// used to update all dependent variables in case of changes to member variables
 	void on_set(void* member_ptr);
+	void on_device_change(void * kit_handle, bool attach);
 	/// user interface creation
 	void create_gui();
 	//@}

@@ -12,6 +12,18 @@
 #include <fstream>
 #include <cgv/utils/file.h>
 #include <cgv/gui/file_dialog.h>
+
+#include <cgv/base/node.h>
+#include <cgv/signal/rebind.h>
+#include <cgv/base/register.h>
+#include <cgv/gui/event_handler.h>
+#include <cgv/gui/provider.h>
+#include <cgv/render/drawable.h>
+#include <cgv/render/shader_program.h>
+#include <cgv/render/attribute_array_binding.h>
+#include <cgv_gl/box_renderer.h>
+#include <cg_gamepad/gamepad_server.h>
+
 #include <libs/cgv_gl/gl/gl.h>
 
 
@@ -75,6 +87,10 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
 	projectLoading_in_process = false;
 	connect(cgv::gui::get_animation_trigger().shoot, this, &vr_point_cloud_aligner::timer_event);
+	last_kit_handle = 0;
+	connect(cgv::gui::ref_vr_server().on_device_change, this, &vr_point_cloud_aligner::on_device_change);
+	cgv::gui::connect_gamepad_server();
+
 }
 
 void vr_point_cloud_aligner::timer_event(double t, double dt)
@@ -203,16 +219,6 @@ void vr_point_cloud_aligner::stream_stats(std::ostream& os)
 	//os << "   rows x cols: " << sample_member_rows << " x " << sample_member_cols << std::endl;
 }
 
-
-bool vr_point_cloud_aligner::init(cgv::render::context& ctx)
-{
-	bool success = point_cloud_interactable::init(ctx);
-
-	// do your one time init (e.g. shader loading, texture creation, ...) here and update the success member
-
-	return success;
-
-}
 void vr_point_cloud_aligner::init_frame(cgv::render::context& ctx)
 {
 	point_cloud_interactable::init_frame(ctx);
@@ -247,6 +253,28 @@ void vr_point_cloud_aligner::create_gui()
 		);
 		align("\b");
 		end_tree_node(true);
+	}
+	add_decorator("vr_test", "heading", "level=3");
+	add_member_control(this, "ray_length", ray_length, "value_slider", "min=0.1;max=10;log=true;ticks=true");
+	if (last_kit_handle) {
+		vr::vr_kit* kit_ptr = vr::get_vr_kit(last_kit_handle);
+		const std::vector<std::pair<int, int> >* t_and_s_ptr = 0;
+		if (kit_ptr)
+			t_and_s_ptr = &kit_ptr->get_controller_throttles_and_sticks(0);
+		add_decorator("deadzone and precisions", "heading", "level=3");
+		int ti = 0;
+		int si = 0;
+		for (unsigned i = 0; i < left_deadzone_and_precision.size(); ++i) {
+			std::string prefix = std::string("unknown[") + cgv::utils::to_string(i) + "]";
+			if (t_and_s_ptr) {
+				if (t_and_s_ptr->at(i).second == -1)
+					prefix = std::string("throttle[") + cgv::utils::to_string(ti++) + "]";
+				else
+					prefix = std::string("stick[") + cgv::utils::to_string(si++) + "]";
+			}
+			add_member_control(this, prefix + ".deadzone", left_deadzone_and_precision[i].first, "value_slider", "min=0;max=1;ticks=true;log=true");
+			add_member_control(this, prefix + ".precision", left_deadzone_and_precision[i].second, "value_slider", "min=0;max=1;ticks=true;log=true");
+		}
 	}
 }
 
@@ -1602,6 +1630,61 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	point_cloud_interactable::on_set(member_ptr);
 }
 
+/// register on device change events
+void vr_point_cloud_aligner::on_device_change(void* kit_handle, bool attach)
+{
+	if (attach) {
+		if (last_kit_handle == 0) {
+			vr::vr_kit* kit_ptr = vr::get_vr_kit(kit_handle);
+			if (kit_ptr) {
+				last_kit_handle = kit_handle;
+				left_deadzone_and_precision = kit_ptr->get_controller_throttles_and_sticks_deadzone_and_precision(0);
+				cgv::gui::ref_vr_server().provide_controller_throttles_and_sticks_deadzone_and_precision(kit_handle, 0, &left_deadzone_and_precision);
+				post_recreate_gui();
+			}
+		}
+	}
+	else {
+		if (kit_handle == last_kit_handle) {
+			last_kit_handle = 0;
+			post_recreate_gui();
+		}
+	}
+}
+
+bool vr_point_cloud_aligner::init(cgv::render::context& ctx)
+{
+	bool success = point_cloud_interactable::init(ctx);
+	printf("called init method\n");
+	cgv::gui::connect_vr_server(true);
+
+	auto view_ptr = find_view_as_node();
+	if (view_ptr) {
+		view_ptr->set_eye_keep_view_angle(dvec3(0, 4, -4));
+		// if the view points to a vr_view_interactor
+		vr_view_ptr = dynamic_cast<vr_view_interactor*>(view_ptr);
+		if (vr_view_ptr) {
+			// configure vr event processing
+			vr_view_ptr->set_event_type_flags(
+				cgv::gui::VREventTypeFlags(
+					cgv::gui::VRE_KEY +
+					cgv::gui::VRE_THROTTLE +
+					cgv::gui::VRE_STICK +
+					cgv::gui::VRE_STICK_KEY +
+					cgv::gui::VRE_POSE
+				));
+			vr_view_ptr->enable_vr_event_debugging(false);
+			// configure vr rendering
+			vr_view_ptr->draw_action_zone(false);
+			vr_view_ptr->draw_vr_kits(true);
+			vr_view_ptr->enable_blit_vr_views(true);
+			vr_view_ptr->set_blit_vr_view_width(200);
+
+		}
+	}
+	// ensure that the box renderer is initialized
+	return success && b_renderer.init(ctx);
+}
 
 #include <cgv/base/register.h>
 
