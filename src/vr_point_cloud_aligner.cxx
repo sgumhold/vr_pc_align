@@ -89,8 +89,6 @@ void vr_point_cloud_aligner::timer_event(double t, double dt)
 			animate_pending_unite_blink();
 		}
 	}
-	// try to optimize this!
-	post_redraw();
 }
 
 ///Setup for the working room
@@ -1209,11 +1207,11 @@ void vr_point_cloud_aligner::seperate_component()
 void vr_point_cloud_aligner::display_seperation_selection()
 {
 	//Start by calculating BB diagonals
-	std::vector<int> group_ids = picked_group->get_component_IDs();
+	std::vector<int> ids_of_group = picked_group->get_component_IDs();
 	double max_bb_diagonal = double(0);
-	for (int i = 0; i < int(group_ids.size()); ++i)
+	for (int i = 0; i < int(ids_of_group.size()); ++i)
 	{
-		Dir BB_diag = pc.box(group_ids.at(i)).get_max_pnt() - pc.box(group_ids.at(i)).get_min_pnt();
+		Dir BB_diag = pc.box(ids_of_group.at(i)).get_max_pnt() - pc.box(ids_of_group.at(i)).get_min_pnt();
 		if (max_bb_diagonal < double(BB_diag.length()))
 		{
 			max_bb_diagonal = BB_diag.length();
@@ -1226,12 +1224,11 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		return;
 	}
 	//calculate per component average normal to estimate optimal splitting direction
-	std::vector<int> Ids_source = picked_group->get_component_IDs();
 	std::vector<component_info> component_info_stack_source;
 	int nr_off_all_points = 0;
-	for (unsigned int i = 0; i < Ids_source.size(); ++i)
+	for (unsigned int i = 0; i < ids_of_group.size(); ++i)
 	{
-		component_info a = pc.component_point_range(Ids_source.at(i));
+		component_info a = pc.component_point_range(ids_of_group.at(i));
 		component_info_stack_source.push_back(a);
 		nr_off_all_points += a.nr_points;
 	}
@@ -1260,33 +1257,30 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	// Find the smallest product and use this direction. Repeat for all scans. Normally the scans should all go to different directions.
 	// Solution 2: Use a formula to devide the 360° circle of the xy area to equal parts and use the biggest numbers as top scan if the number is not even(the one going updward towards z)
 	// step 1 obtain rotation matrix formula
-	double rotation_degree = 0;
+	double rotation_rad = 0;
 	int rotation_steps = 0;
 	bool uneven_comp_number = false;
-	if (Ids_source.size() % 2 == 0)
+	if (ids_of_group.size() % 2 == 0)
 	{
-		rotation_steps = int(Ids_source.size());
+		rotation_steps = int(ids_of_group.size());
 		uneven_comp_number = false;
 	}
 	else
 	{
-		rotation_steps = int(Ids_source.size()-1);
+		rotation_steps = int(ids_of_group.size()-1);
 		uneven_comp_number = true;
 	}
-	rotation_degree = 360 / rotation_steps;
+	rotation_rad = 2 * std::_Pi / rotation_steps;
 
-	double needed_lentgth = max_bb_diagonal * 1.1;
-	needed_lentgth =  needed_lentgth / (2 * sin(rotation_degree / 2 * std::_Pi / 180.0)) ;
-	needed_lentgth *= needed_lentgth;
-	needed_lentgth = sqrt(needed_lentgth);
+	double needed_lentgth = 1.1*max_bb_diagonal / abs(2 * sin(rotation_rad / 2));
 	
 	//A rotation matrix that rotates for x degrees. Do not forget to multiply PI/180!
 	cgv::math::fmat<float,3,3> rotation_mat;
-	rotation_mat(0, 0) = cos(rotation_degree * std::_Pi / 180.0);
-	rotation_mat(0, 1) = -sin(rotation_degree * std::_Pi / 180.0);
+	rotation_mat(0, 0) = cos(rotation_rad);
+	rotation_mat(0, 1) = -sin(rotation_rad);
 	rotation_mat(0, 2) = 0;
-	rotation_mat(1, 0) = sin(rotation_degree * std::_Pi / 180.0);
-	rotation_mat(1, 1) = cos(rotation_degree * std::_Pi / 180.0);
+	rotation_mat(1, 0) = sin(rotation_rad);
+	rotation_mat(1, 1) = cos(rotation_rad);
 	rotation_mat(1, 2) = 0;
 	rotation_mat(2, 0) = 0;
 	rotation_mat(2, 1) = 0;
@@ -1297,46 +1291,49 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	Dir basic_vec(1, 0, 0);
 	for (int i = 0; i < rotation_steps; ++i)
 	{
+		//Dir basic_vec(cos(i*rotation_rad), sin(i*rotation_rad), 0);
 		rotated_directions.push_back(basic_vec);
 		double temp_cross_product = 1000;
 		int lowest_ID = -1;
 		for (int x = 0; x < int(averaged_normal_direction.size());++x)
 		{
-			bool debug = !(matched_ids.find(Ids_source.at(x)) == matched_ids.end());
+			bool debug = !(matched_ids.find(ids_of_group.at(x)) == matched_ids.end());
 			if (debug)
 			{
 				continue;
 			}
-			if (temp_cross_product > (cgv::math::cross(averaged_normal_direction.at(x), basic_vec).length()))
+			if ((cross(averaged_normal_direction.at(x), basic_vec).length()) < temp_cross_product)
 			{
-				lowest_ID = Ids_source.at(x);
-				temp_cross_product = cgv::math::cross(averaged_normal_direction.at(x), basic_vec).length();
+				lowest_ID = ids_of_group.at(x);
+				temp_cross_product = cross(averaged_normal_direction.at(x), basic_vec).length();
 			}
 		}
 		matched_ids.insert(lowest_ID);
 		ids.push_back(lowest_ID);
-		basic_vec = rotation_mat * basic_vec;
+		basic_vec = (rotation_mat * basic_vec);
 	}
 	//step 2 apply all the changes by animation and if the number is uneven find the uneven scan and lift it
 	for (int x = 0; x < int(ids.size()); ++x)
 	{
 		//animate with transition to rotated direction
-		Dir translation = rotated_directions.at(x) * needed_lentgth + average_middle;
-		cgv::gui::animate_with_linear_blend(pc.component_translation(ids.at(x)), Dir(translation.x(), translation.y(), translation.z()), ANIMATION_DURATION, 0, false);
+		rotated_directions.at(x).normalize();
+		Dir translation = (rotated_directions.at(x) * needed_lentgth) + pc.component_translation(ids.at(x));
+		printf("%d iteration, translated compNR: %d in direction: %f %f %f \n", x,ids.at(x),rotated_directions.at(x).x(), rotated_directions.at(x).y(), rotated_directions.at(x).z());
+		cgv::gui::animate_with_linear_blend(pc.component_translation(ids.at(x)), translation, ANIMATION_DURATION, 0, false)->set_base_ptr(base_ptr(this));
 		RGBA color_cast = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(x) / float(ids.size()), 0.5f, 0.5f, 1.0f);
-		cgv::gui::animate_with_linear_blend(pc.component_color(ids.at(x)), color_cast, ANIMATION_DURATION,0,false);
+		cgv::gui::animate_with_linear_blend(pc.component_color(ids.at(x)), color_cast, ANIMATION_DURATION, 0, false)->set_base_ptr(base_ptr(this));
 		post_redraw();		
 	}
 	if (uneven_comp_number)
 	{
-		for (int x = 0; x < Ids_source.size(); ++x)
+		for (int x = 0; x < ids_of_group.size(); ++x)
 		{
-			if (matched_ids.find(Ids_source.at(x)) == matched_ids.cend())
+			if (matched_ids.find(ids_of_group.at(x)) == matched_ids.cend())
 			{
 				//animate with transition to top direction
-				Dir translation = Dir(0,0,1) * needed_lentgth + average_middle;
-				cgv::gui::animate_with_linear_blend(pc.component_translation(Ids_source.at(x)), Dir(translation.x(), translation.y(), translation.z()), ANIMATION_DURATION, 0, false);
-				cgv::gui::animate_with_linear_blend(pc.component_color(Ids_source.at(x)),RGBA(0.5, 0.5, 0.5, 0.5), ANIMATION_DURATION,0,false);
+				Dir translation = (Dir(0,0,1) * needed_lentgth) + average_middle;
+				cgv::gui::animate_with_linear_blend(pc.component_translation(ids_of_group.at(x)), Dir(translation.x(), translation.y(), translation.z()), ANIMATION_DURATION, 0, false);
+				cgv::gui::animate_with_linear_blend(pc.component_color(ids_of_group.at(x)),RGBA(0.5, 0.5, 0.5, 0.5), ANIMATION_DURATION,0,false);
 				post_redraw();
 			}
 		}
