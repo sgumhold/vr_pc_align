@@ -774,11 +774,11 @@ void vr_point_cloud_aligner::try_component_pick()
 	}
 }
 
-void vr_point_cloud_aligner::try_group_pick()
+bool vr_point_cloud_aligner::try_group_pick()
 {
 	if (transformation_lock || pending_unite)
 	{
-		return;
+		return false;
 	}
 
 	//check for box intersections
@@ -802,7 +802,7 @@ void vr_point_cloud_aligner::try_group_pick()
 		{
 
 			Dir ray_dir = picked_point - last_view_point;
-			float z_factor_min = 1000.0f;
+			float z_factor_min = INFINITE;
 			int min_component = -1;
 			for (int i = 0; i < int(intersectedPoints.size()); ++i)
 			{
@@ -813,7 +813,7 @@ void vr_point_cloud_aligner::try_group_pick()
 				}
 			}
 			int a = component_NR.at(min_component);
-
+			current_picked_distance = z_factor_min;
 			constructed_set* new_pick;
 			int count = 0;
 			//Search for possible picked groups and update if nothing is found return
@@ -885,7 +885,16 @@ void vr_point_cloud_aligner::try_group_pick()
 				count++;
 			}
 		}
+		else
+		{
+			return false;
+		}
 	}
+	else
+	{
+		return false;
+	}
+	return true;
 }
 
 
@@ -1465,10 +1474,18 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				{
 					switch (vrke.get_key())
 					{
-					case vr::VR_LEFT_BUTTON0:
-						try_group_pick();
+					case vr::VR_RIGHT_BUTTON0:
+						if (try_group_pick())
+						{
+							drag_active = true;
+						}
 						return true;
 					}
+				}
+				if (vrke.get_action() == cgv::gui::KA_RELEASE)
+				{
+					drag_active = false;
+					return true;
 				}
 				break;
 			}
@@ -1484,8 +1501,9 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					have_picked_point = true;
 				}
 				if (drag_active) {
-					//drag_scan(vrpo.get_rotation_matrix(),vrpo.get_position()-vrpo.get_last_position());
+					drag_scan(vrpo.get_rotation_matrix(),vrpo.get_position()-vrpo.get_last_position());
 				}
+				return true;
 			}
 		}
 	}
@@ -1721,9 +1739,17 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	point_cloud_interactable::on_set(member_ptr);
 }
 
-void vr_point_cloud_aligner::drag_scan()
+void vr_point_cloud_aligner::drag_scan(cgv::math::fmat<float,3,3> rotation, Dir translation)
 {
-	printf("Not yet implemented!\n");
+	std::vector<int> picked_ids = picked_group->get_component_IDs();
+	for (int x = 0; x < picked_ids.size(); ++x)
+	{
+		Dir global_translation = pc.component_translation(picked_ids.at(x));
+		cgv::math::fmat<float,3,3> global_rotation;
+		pc.component_rotation(picked_ids.at(x)).put_matrix(global_rotation);
+		
+
+	}
 }
 
 /// register on device change events

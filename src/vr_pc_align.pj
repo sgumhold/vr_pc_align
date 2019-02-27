@@ -10,13 +10,13 @@ addProjectDirs=[CGV_DIR."/plugins", CGV_DIR."/libs", CGV_DIR."/3rd", CGV_DIR."/t
 addProjectDeps=[
 	"cgv_utils","cgv_type","cgv_data","cgv_base", "cgv_signal", "cgv_reflect", "cgv_gl", "cgv_media", "cgv_os", "cgv_gui", "cgv_render",
 	"cgv_viewer", 
-	"cg_fltk","crg_stereo_view","crg_light", "crg_grid", "cmi_io", "cgv_reflect_types","crg_vr_view","openvr_driver","vr_emulator",
+	"cg_fltk","crg_vr_view","crg_light", "crg_grid", "cmi_io", "cgv_reflect_types","openvr_driver","vr_emulator",
 	"annf","glew","point_cloud"
 ];
 addDependencies=["opengl","glu"];
 addSharedDefines=["VR_PC_ALIGN_EXPORTS"];
 addCommandLineArguments=[
 	'config:"'.INPUT_DIR.'/vr_pc_align.def"',
-	["type(shader_config):shader_path='".INPUT_DIR.";".CGV_DIR."/libs/cgv_gl/glsl;".CGV_DIR."/libs/point_cloud/glsl'", "BEFORE", "vr_pc_align"]
+	["type(shader_config):shader_path='".INPUT_DIR.";".CGV_DIR."/libs/cgv_gl/glsl;".CGV_DIR."/libs/point_cloud/glsl'", "BEFORE", "crg_vr_view"]
 ];
 

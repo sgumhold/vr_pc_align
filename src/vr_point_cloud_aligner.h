@@ -77,7 +77,7 @@ private:
 	void restore_state(int i);
 
 	/// Checks for intersections and updates picked groups
-	void try_group_pick();
+	bool try_group_pick();
 	/// Checks for intersections and updates picked components to seperate
 	void try_component_pick();
 	/// Flag to show that a seperation is in process
@@ -161,6 +161,9 @@ private:
 	Dir current_drag_x_axis;
 	Dir current_drag_y_axis;
 	Dir current_drag_z_axis;
+
+	///Saves the draging distance for an optimal point rotation
+	float current_picked_distance;
 
 protected:
 	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
@@ -249,7 +252,7 @@ public:
 	void reset_componets_transformations();
 	/// used to update all dependent variables in case of changes to member variables
 	void on_set(void* member_ptr);
-	void drag_scan();
+	void drag_scan(cgv::math::fmat<float,3,3> rotation, Dir translation);
 	void on_device_change(void * kit_handle, bool attach);
 	/// user interface creation
 	void create_gui();
