@@ -57,7 +57,7 @@
 vr_point_cloud_aligner::vr_point_cloud_aligner()
 {
 	set_name("VR Point Cloud Aligner");
-
+	vr_view_ptr = 0;
 	picked_box_extent = 0.1f;
 	picked_box_color = Clr(float_to_color_component(1.0f), 0, 0);
 	view_ptr = 0;
@@ -86,13 +86,13 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	even_older_color = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
 	projectLoading_in_process = false;
+
 	connect(cgv::gui::get_animation_trigger().shoot, this, &vr_point_cloud_aligner::timer_event);
 	last_kit_handle = 0;
 	connect(cgv::gui::ref_vr_server().on_device_change, this, &vr_point_cloud_aligner::on_device_change);
 	cgv::gui::connect_gamepad_server();
 
 	drag_active = false;
-	vr_view_ptr = 0;
 }
 
 void vr_point_cloud_aligner::timer_event(double t, double dt)
@@ -789,7 +789,7 @@ void vr_point_cloud_aligner::try_group_pick()
 		for (int i = 0; i < int(pc.get_nr_components()); i++)
 		{
 			Crd temp = box_ray_intersection(last_view_point, picked_point, pc.box(i), pc.component_translation(i), pc.component_rotation(i));
-			if (temp > 0)
+			if (temp != INFINITY)
 			{
 				intersectedPoints.push_back(temp);
 				component_NR.push_back(i);
@@ -909,6 +909,54 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 		glEnd();
 		glLineWidth(1);
 	}
+
+	std::vector<vec3> P;
+	std::vector<rgb> C;
+
+	if (vr_view_ptr) {
+
+		const vr::vr_kit_state* state_ptr = vr_view_ptr->get_current_vr_state();
+		if (state_ptr) {
+			for (int i = 0; i < 2; ++i) {
+				vec3 ray_origin, ray_direction;
+				state_ptr->controller[i].put_ray(&ray_origin(0), &ray_direction(0));
+				P.push_back(ray_origin);
+				P.push_back(ray_origin + ray_length * ray_direction);
+				rgb c(float(1 - i), 0, float(i));
+				C.push_back(c);
+				C.push_back(c);
+			}
+		}
+
+	}
+	else 
+	{
+		vec3 ray_origin, ray_direction;
+		ray_origin = last_view_point;
+		ray_direction = picked_point - last_view_point;
+		P.push_back(ray_origin);
+		P.push_back(ray_origin + ray_length * ray_direction);
+		rgb c(float(1), 0, float(1));
+		C.push_back(c);
+		C.push_back(c);
+	}
+	if (P.size() > 0) {
+		cgv::render::shader_program& prog = ctx.ref_default_shader_program();
+		int pi = prog.get_position_index();
+		int ci = prog.get_color_index();
+		cgv::render::attribute_array_binding::set_global_attribute_array(ctx, pi, P);
+		cgv::render::attribute_array_binding::enable_global_array(ctx, pi);
+		cgv::render::attribute_array_binding::set_global_attribute_array(ctx, ci, C);
+		cgv::render::attribute_array_binding::enable_global_array(ctx, ci);
+		glLineWidth(3);
+		prog.enable(ctx);
+		glDrawArrays(GL_LINES, 0, P.size());
+		prog.disable(ctx);
+		cgv::render::attribute_array_binding::disable_global_array(ctx, pi);
+		cgv::render::attribute_array_binding::disable_global_array(ctx, ci);
+		glLineWidth(1);
+	}
+
 	// this is actually already set to false in gl_point_cloud_drawable but repeated here to make sure that you notice that when specifying boxes with min and max points, position_is_center must be false in renderer
 	b_renderer.set_position_is_center(false);
 	b_renderer.set_position_array(ctx, &room_boxes[0].get_min_pnt(), room_boxes.size(), sizeof(Box));
@@ -950,7 +998,7 @@ point_cloud_types::Crd vr_point_cloud_aligner::box_ray_intersection(const Pnt& r
 	Pnt local_ray_direction = transform_to_local(ray_end, box_translation, box_rotation) - local_ray_start;
 	Pnt local_result;
 	if (!box_ray_intersection(local_ray_start, local_ray_direction, box, local_result))
-		return -1;
+		return INFINITY;
 	printf("Intersection, local Coordinates: %f %f %f\n", local_result.x(), local_result.y(), local_result.z());
 	//Pnt local_intersection_point = local_ray_start + local_result * local_ray_direction;
 	Pnt global_intersection_point = box_translation + box_rotation.apply(local_result);
@@ -1156,9 +1204,9 @@ interval vr_point_cloud_aligner::calculate_intersectionintervall(float rayStart,
 void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int x, int y)
 {
 	have_picked_point = true;
-	const vr::vr_kit_state* state_ptr = vr_view_ptr->get_current_vr_state();
-	Pnt origin(state_ptr->controller[0].pose[9], state_ptr->controller[0].pose[10], state_ptr->controller[0].pose[11]);
-	picked_point = origin + Pnt(state_ptr->controller[0].pose[9], 0, 0);
+	//const vr::vr_kit_state* state_ptr = vr_view_ptr->get_current_vr_state();
+	//Pnt origin(state_ptr->controller[0].pose[9], state_ptr->controller[0].pose[10], state_ptr->controller[0].pose[11]);
+	//picked_point = origin + Pnt(state_ptr->controller[0].pose[9], 0, 0);
 	
 	//double z = ctx.get_z_D(x, y);
 	//// check for background
@@ -1419,20 +1467,21 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					{
 					case vr::VR_LEFT_BUTTON0:
 						try_group_pick();
-						printf("say something\n");
 						return true;
 					}
 				}
+				break;
 			}
-			case cgv::gui::VRE_POSE:
+			case cgv::gui::EID_POSE:
 			{
 				cgv::gui::vr_pose_event& vrpo = static_cast<cgv::gui::vr_pose_event&>(e);
-				//How controller 1 is the left handed controller!
-				if (vrpo.get_trackable_index() == 2)
+				//controller 1 is the left handed controller!
+				if (vrpo.get_trackable_index() == 1)
 				{
 					last_view_point = vrpo.get_position();
-					Dir pick_dir = vrpo.get_state().controller->pose[0];
+					Dir pick_dir(float (vrpo.get_state().controller[1].pose[6]),float(vrpo.get_state().controller[1].pose[7]), float(vrpo.get_state().controller[1].pose[8]));
 					picked_point = last_view_point + pick_dir * 5;
+					have_picked_point = true;
 				}
 				if (drag_active) {
 					//drag_scan(vrpo.get_rotation_matrix(),vrpo.get_position()-vrpo.get_last_position());

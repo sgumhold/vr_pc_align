@@ -6,11 +6,11 @@ addIncDirs=[
 	INPUT_DIR."/../eigen-git-mirror",
 	INPUT_DIR."/../sparseicp/include"
 ];
-addProjectDirs=[CGV_DIR."/plugins", CGV_DIR."/libs", CGV_DIR."/3rd"];
+addProjectDirs=[CGV_DIR."/plugins", CGV_DIR."/libs", CGV_DIR."/3rd", CGV_DIR."/test"];
 addProjectDeps=[
 	"cgv_utils","cgv_type","cgv_data","cgv_base", "cgv_signal", "cgv_reflect", "cgv_gl", "cgv_media", "cgv_os", "cgv_gui", "cgv_render",
 	"cgv_viewer", 
-	"cg_fltk","crg_stereo_view","crg_light", "crg_grid", "cmi_io", "cgv_reflect_types","crg_vr_view","openvr_driver",
+	"cg_fltk","crg_stereo_view","crg_light", "crg_grid", "cmi_io", "cgv_reflect_types","crg_vr_view","openvr_driver","vr_emulator",
 	"annf","glew","point_cloud"
 ];
 addDependencies=["opengl","glu"];
