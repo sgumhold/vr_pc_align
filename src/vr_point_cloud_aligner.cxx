@@ -1,5 +1,6 @@
 #include "vr_point_cloud_aligner.h"
 #include <cgv/base/register.h>
+#include <cgv/math/inv.h>
 #include <cgv/gui/key_event.h>
 #include <cgv/gui/trigger.h>
 #include <cgv/gui/mouse_event.h>
@@ -45,6 +46,8 @@
 #define y_room_max 7
 #define z_room_max 1.75
 
+#define MAIN_CONTROLLER 1
+#define THROTTLE_THRESHOLD 0.4
 
 #ifdef _DEBUG
 #define SAMPLE_COUNT 100
@@ -59,6 +62,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	set_name("VR Point Cloud Aligner");
 	vr_view_ptr = 0;
 	picked_box_extent = 0.1f;
+	ray_length = 3.0f;
 	picked_box_color = Clr(float_to_color_component(1.0f), 0, 0);
 	view_ptr = 0;
 	have_picked_point = false;
@@ -570,10 +574,10 @@ void vr_point_cloud_aligner::repostion_above_table()
 	Pnt average_middle(0, 0, 0);
 	int nr_off_all_points = 0;
 	std::vector<component_info> component_info_stack;
-	for (int x = 0; x<int(pc.get_nr_components()); ++x)
+	std::vector<int> search_ids = picked_group->get_component_IDs();
+	for (int x = 0; x<int(search_ids.size()); ++x)
 	{
-		if (user_modified.at(x))
-			component_info_stack.push_back(pc.component_point_range(x));
+		component_info_stack.push_back(pc.component_point_range(search_ids.at(x)));
 	}
 	for (unsigned int current_component = 0; current_component < component_info_stack.size(); ++current_component)
 	{
@@ -1474,36 +1478,137 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				{
 					switch (vrke.get_key())
 					{
-					case vr::VR_RIGHT_BUTTON0:
-						if (try_group_pick())
-						{
-							drag_active = true;
-						}
-						return true;
+						case vr::VR_RIGHT_BUTTON0:
+							if (!seperation_in_process && picked_group->get_ID() != -1 && picked_group->get_component_IDs().size() > 1)
+							{
+								seperation_in_process = true;
+								transformation_lock = true;
+								std::thread sep_thread(&vr_point_cloud_aligner::display_seperation_selection, this);
+								sep_thread.detach();
+								post_redraw();
+							}
+							return true;
+						case vr::VR_RIGHT_STICK_UP:
+							if (!transformation_lock)
+							{
+								repostion_above_table();
+							}
+							return true;
+						case vr::VR_RIGHT_STICK_LEFT:
+							if (pending_unite) {
+								unite(false);
+								pending_unite = false;
+								transformation_lock = false;
+							}
+							else if (seperation_in_process)
+							{
+								seperation_in_process = false;
+								transformation_lock = false;
+								display_reverse_seperation();
+							}
+							else
+								restore_state(pss_count - 2);
+							return true;
+						case vr::VR_RIGHT_STICK_RIGHT:
+							restore_state(pss_count);
+							return true;
+						case vr::VR_RIGHT_STICK_DOWN:
+							icp_executing = true;
+							transformation_lock = true;
+							start_ICP();
+							return true;
+						case vr::VR_RIGHT_MENU:
+							if (pending_unite) {
+								unite(true);
+								pending_unite = false;
+							}
+							else if (seperation_in_process)
+							{
+								if (picked_component_valid)
+								{
+									seperation_in_process = false;
+									seperate_component();
+								}
+							}
+							return true;
 					}
 				}
 				if (vrke.get_action() == cgv::gui::KA_RELEASE)
 				{
-					drag_active = false;
+					if (icp_executing) 
+					{
+						pending_unite = true;
+						icp_executing = false;
+					}
+						
 					return true;
 				}
 				break;
 			}
+			case cgv::gui::EID_STICK:
+			{
+				cgv::gui::vr_stick_event& vrse = static_cast<cgv::gui::vr_stick_event&>(e);
+				switch (vrse.get_action()) {
+				case cgv::gui::SA_TOUCH:
+				case cgv::gui::SA_PRESS:
+				case cgv::gui::SA_UNPRESS:
+				case cgv::gui::SA_RELEASE:
+					break;
+				case cgv::gui::SA_MOVE:
+				case cgv::gui::SA_DRAG:
+					if (drag_active && !local_pose_mat_stack.empty()) {
+						for (auto& M : local_pose_mat_stack) {
+							M(2, 3) -= vrse.get_dy();
+						}
+						return true;
+					}
+				}
+				break;
+				return true;
+			}
 			case cgv::gui::EID_POSE:
 			{
 				cgv::gui::vr_pose_event& vrpo = static_cast<cgv::gui::vr_pose_event&>(e);
-				//controller 1 is the left handed controller!
-				if (vrpo.get_trackable_index() == 1)
+				if (vrpo.get_trackable_index() == MAIN_CONTROLLER)
 				{
 					last_view_point = vrpo.get_position();
-					Dir pick_dir(float (vrpo.get_state().controller[1].pose[6]),float(vrpo.get_state().controller[1].pose[7]), float(vrpo.get_state().controller[1].pose[8]));
-					picked_point = last_view_point + pick_dir * 5;
+					Dir pick_dir(float(vrpo.get_state().controller[1].pose[6]),float(vrpo.get_state().controller[1].pose[7]), float(vrpo.get_state().controller[1].pose[8]));
+					picked_point = last_view_point + (-pick_dir * 5);
 					have_picked_point = true;
 				}
-				if (drag_active) {
-					drag_scan(vrpo.get_rotation_matrix(),vrpo.get_position()-vrpo.get_last_position());
+				if (drag_active && !transformation_lock) {
+					drag_scan(vrpo.get_orientation(),vrpo.get_position());
 				}
 				return true;
+			}
+			case cgv::gui::EID_THROTTLE:
+			{
+				if (transformation_lock)
+					return true;
+				cgv::gui::vr_throttle_event& vrth = static_cast<cgv::gui::vr_throttle_event&>(e);
+				if (vrth.get_controller_index() == MAIN_CONTROLLER)
+				{
+					if (vrth.get_value() > THROTTLE_THRESHOLD)
+					{
+						if (drag_active)
+						{
+							return true;
+						}
+						if (try_group_pick())
+						{
+							//Dragging blocks the picker so that the picker is only called once
+							drag_active = true;
+							calculate_local_pose(vrth.get_state().controller[MAIN_CONTROLLER].pose);
+							return true;
+						}
+					}
+					///This means the throttle is now below the dragging threshold
+					else 
+					{
+						drag_active = false;
+						return true;
+					}
+				}
 			}
 		}
 	}
@@ -1687,6 +1792,34 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 	post_redraw();
 }
 
+void vr_point_cloud_aligner::calculate_local_pose(const float* controller_pose)
+{
+	//First of all obtain the transformation from global to local by using the contoller pose
+	mat4 controller_pose_mat;
+	controller_pose_mat.set_col(0, vec4(reinterpret_cast<const vec3&>(controller_pose[0]), 0));
+	controller_pose_mat.set_col(1, vec4(reinterpret_cast<const vec3&>(controller_pose[3]), 0));
+	controller_pose_mat.set_col(2, vec4(reinterpret_cast<const vec3&>(controller_pose[6]), 0));
+	controller_pose_mat.set_col(3, vec4(reinterpret_cast<const vec3&>(controller_pose[9]), 1));
+
+	mat4 inv_controller_pose_mat = inv(controller_pose_mat);
+
+	//now assemble a global pose matrices for the picked scan group
+	local_pose_mat_stack.clear();
+	std::vector<int> ids = picked_group->get_component_IDs();
+	for (int x = 0; x < int(ids.size()); ++x)
+	{
+		mat3 rot;
+		pc.component_rotation(ids.at(x)).put_matrix(rot);
+		rot.transpose();
+		mat4 temp;
+		temp.set_col(0, vec4(rot.col(0), 0));
+		temp.set_col(1, vec4(rot.col(1), 0));
+		temp.set_col(2, vec4(rot.col(2), 0));
+		temp.set_col(3, vec4(pc.component_translation(ids.at(x)), 1));
+		local_pose_mat_stack.push_back(inv_controller_pose_mat*temp);
+	}
+}
+
 void vr_point_cloud_aligner::reset_componets_transformations() {
 	int nr = pc.get_nr_components();
 	if (nr > 0)
@@ -1741,14 +1874,22 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 
 void vr_point_cloud_aligner::drag_scan(cgv::math::fmat<float,3,3> rotation, Dir translation)
 {
+	mat4 controller_pose_mat;
+	controller_pose_mat.set_col(0, vec4(rotation.col(0), 0));
+	controller_pose_mat.set_col(1, vec4(rotation.col(1), 0));
+	controller_pose_mat.set_col(2, vec4(rotation.col(2), 0));
+	controller_pose_mat.set_col(3, vec4(translation, 1));
+
 	std::vector<int> picked_ids = picked_group->get_component_IDs();
 	for (int x = 0; x < picked_ids.size(); ++x)
 	{
-		Dir global_translation = pc.component_translation(picked_ids.at(x));
-		cgv::math::fmat<float,3,3> global_rotation;
-		pc.component_rotation(picked_ids.at(x)).put_matrix(global_rotation);
-		
-
+		mat4 temp = controller_pose_mat*local_pose_mat_stack[x];
+		mat3 new_rot;
+		for (int i = 0; i < 3; ++i)
+			new_rot.set_col(i, reinterpret_cast<const vec3&>(temp.col(i)));
+		vec3 new_trans = reinterpret_cast<const vec3&>(temp.col(3));
+		pc.component_rotation(picked_ids[x]).set(transpose(new_rot));
+		pc.component_translation(picked_ids[x]) = new_trans;
 	}
 }
 

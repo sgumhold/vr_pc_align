@@ -164,6 +164,10 @@ private:
 
 	///Saves the draging distance for an optimal point rotation
 	float current_picked_distance;
+	///Saves the local pose of a group/component for dragging
+	std::vector<cgv::math::fmat<float, 4, 4>> local_pose_mat_stack;
+	///calculates the local pose of the picked group/component
+	void calculate_local_pose(const float*);
 
 protected:
 	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
