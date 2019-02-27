@@ -548,11 +548,10 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 float vr_point_cloud_aligner::find_deepest_BB_point()
 {
 	std::vector<Pnt> transformed_Pnts;
-	for (int x = 0; x < int(pc.get_nr_components()); ++x)
+	std::vector<int> searched_ids = picked_group->get_component_IDs();
+	for (int x = 0; x < int(searched_ids.size()); ++x)
 	{
-		if (!user_modified.at(x))
-			continue;
-		Box current_box = pc.box(x);
+		Box current_box = pc.box(searched_ids[x]);
 		for (int y = 0; y < 8; ++y)
 		{
 			transformed_Pnts.push_back(transform_to_global(current_box.get_corner(y), pc.component_translation(x), pc.component_rotation(x)));
@@ -599,12 +598,9 @@ void vr_point_cloud_aligner::repostion_above_table()
 	{
 		y_addition = TABLE_HEIGT - deepest_y;
 	}
-	for (int x = 0; x < int(pc.get_nr_components()); ++x)
+	for (int x = 0; x < int(search_ids.size()); ++x)
 	{
-		if (user_modified.at(x))
-		{
-			pc.component_translation(x) = pc.component_translation(x) + Dir(xz_addition.x(), y_addition, xz_addition.z());
-		}
+		cgv::gui::animate_with_linear_blend(pc.component_translation(search_ids[x]), pc.component_translation(search_ids[x]) + Dir(xz_addition.x(), y_addition, xz_addition.z()),ANIMATION_DURATION,0,false);
 	}
 	push_back_state();
 }
@@ -1530,6 +1526,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 									seperate_component();
 								}
 							}
+							transformation_lock = false;
 							return true;
 					}
 				}
@@ -1540,7 +1537,6 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						pending_unite = true;
 						icp_executing = false;
 					}
-						
 					return true;
 				}
 				break;
@@ -1606,6 +1602,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					else 
 					{
 						drag_active = false;
+						push_back_state();
 						return true;
 					}
 				}
