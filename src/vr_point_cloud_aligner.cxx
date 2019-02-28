@@ -277,34 +277,6 @@ void vr_point_cloud_aligner::create_gui()
 
 ///Module 2 Helper functions
 
-void vr_point_cloud_aligner::position_scans()
-{
-	// a new component has been added and should be moved to the line. Therefore all pointclouds that are already there should be moved, but only if they are not already usermodified
-	int nr = 0;
-	for (unsigned int a = 0; a < user_modified.size(); a++) {
-		if (user_modified.at(a)) {
-			nr++;
-		}
-	}
-	if (nr > 0)
-	{
-		for (unsigned int i = 0; i < pc.get_nr_components(); i++)
-		{
-			float x = float(x_room_max) / nr;
-			if (!user_modified.at(i))
-			{
-				pc.component_translation(i).set(Crd(x_room_min + 0.2), Crd(1.8), Crd(i * x));
-				pc.component_rotation(i) = (defaultFacing);
-			}
-
-		}
-	}
-	else
-	{
-		reset_componets_transformations();
-	}
-}
-
 /// small helper function to get a valid color.
 point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 {
@@ -565,7 +537,7 @@ float vr_point_cloud_aligner::find_deepest_BB_point()
 	return lowest_y;
 }
 
-void vr_point_cloud_aligner::repostion_above_table()
+void vr_point_cloud_aligner::reposition_above_table()
 {
 	Pnt average_middle(0, 0, 0);
 	int nr_off_all_points = 0;
@@ -821,7 +793,7 @@ bool vr_point_cloud_aligner::try_group_pick()
 		{
 
 			Dir ray_dir = picked_point - last_view_point;
-			float z_factor_min = INFINITE;
+			float z_factor_min = float(INFINITE);
 			int min_component = -1;
 			for (int i = 0; i < int(intersectedPoints.size()); ++i)
 			{
@@ -1040,7 +1012,6 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 	bool first_read = true;
 	projectLoading_in_process = true;
 	std::vector<int> alignment_IDs;
-	user_modified.clear();
 	file_paths.clear();
 	while (std::getline(inFile, line))
 	{
@@ -1053,8 +1024,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 		int alignment_ID;
 		float x, y, z;
 		float re, xi, yi, zi;
-		bool isUserModified;
-		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> isUserModified >> alignment_ID)) {
+		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> alignment_ID)) {
 			//If reading fails, continue next
 			continue;
 		}
@@ -1073,7 +1043,6 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 			pc.component_translation(0).set(x, y, z);
 			pc.component_rotation(0).set(re, xi, yi, zi);
 			pc.component_color(0) = RGBA(float(pc.get_nr_components()) / float(20),0.5f, 0.5f,1.0f);
-			user_modified.push_back(isUserModified);
 			file_paths.push_back(fileName);
 			transformation_lock = false;
 			first_read = false;
@@ -1090,7 +1059,6 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 				pc_to_append.component_translation(0).set(x, y, z);
 				pc_to_append.component_rotation(0).set(re, xi, yi, zi);
 				pc_to_append.component_color(0) = cgv::media::color<float, cgv::media::HLS, cgv::media::OPACITY>(float(pc.get_nr_components()+1) / float(20), 0.5f, 0.5f, 1.0f);
-				user_modified.push_back(isUserModified);
 				file_paths.push_back(fileName);
 				pc.append(pc_to_append);
 				transformation_lock = false;
@@ -1164,7 +1132,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 			if (s.find_component_ID(i))
 				alignmentID = s.get_ID();
 		}
-		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << user_modified.at(i) << ' ' << alignmentID <<'\n';
+		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << alignmentID <<'\n';
 	}
 	outFile.close();
 }
@@ -1367,7 +1335,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 			current_normal += pc.nml(current_adress);
 			average_middle += pc.transformed_pnt(current_adress);
 		}
-		current_normal /= a.nr_points;
+		current_normal /= float(a.nr_points);
 		current_normal.normalize();
 		averaged_normal_direction.push_back(current_normal);
 	}
@@ -1380,7 +1348,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	// Find the smallest product and use this direction. Repeat for all scans. Normally the scans should all go to different directions.
 	// Solution 2: Use a formula to devide the 360° circle of the xy area to equal parts and use the biggest numbers as top scan if the number is not even(the one going updward towards z)
 	// step 1 obtain rotation matrix formula
-	double rotation_rad = 0;
+	float rotation_rad = 0;
 	int rotation_steps = 0;
 	bool uneven_comp_number = false;
 	if (ids_of_group.size() % 2 == 0)
@@ -1395,7 +1363,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	}
 	rotation_rad = 2 * std::_Pi / rotation_steps;
 
-	double needed_lentgth = 1.1*max_bb_diagonal / abs(2 * sin(rotation_rad / 2));
+	float needed_lentgth = float(1.1*max_bb_diagonal / abs(2 * sin(rotation_rad / 2)));
 	
 	//A rotation matrix that rotates for x degrees. Do not forget to multiply PI/180!
 	cgv::math::fmat<float,3,3> rotation_mat;
@@ -1449,7 +1417,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	}
 	if (uneven_comp_number)
 	{
-		for (int x = 0; x < ids_of_group.size(); ++x)
+		for (int x = 0; x < int(ids_of_group.size()); ++x)
 		{
 			if (matched_ids.find(ids_of_group.at(x)) == matched_ids.cend())
 			{
@@ -1471,12 +1439,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 
 	if(pc.get_nr_components() < 1)
 		return false;
-	// If the user already modified his scans, rescaling is not posible, because it would destroy current alignments.
-	for (int x = 0; x < int(user_modified.size()); ++x)
-	{
-		if (user_modified[x])
-			return false;
-	}
+
 	//Reverse old scaling
 	mat4 scaling_mat;
 	scaling_mat.identity();
@@ -1498,6 +1461,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	pc.transform(scaling_mat);
 	//Scalierung mit transform -> Scalierungsfaktor speichern!
 	//UpdateBoxes!
+	return true;
 }
 
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
@@ -1527,7 +1491,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						case vr::VR_RIGHT_STICK_UP:
 							if (!transformation_lock)
 							{
-								repostion_above_table();
+								reposition_above_table();
 							}
 							return true;
 						case vr::VR_RIGHT_STICK_LEFT:
@@ -1614,9 +1578,10 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					}
 					}
 					else {
+						/*
 						if (scale(vrse.get_dy()/5))
 							printf("Scaled scans to %f \n", current_scaling_factor);
-						
+						*/
 						return true;
 					}
 				}
@@ -1725,7 +1690,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 			case 'T':
 				if (!transformation_lock)
 				{
-					repostion_above_table();
+					reposition_above_table();
 				}
 				return true;
 			}
@@ -1816,9 +1781,9 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 		}
 
 		transformation_lock = true;
-		
-		position_scans();
-		
+		//This may come unhandy in some situations!
+		reset_componets_transformations();
+
 		transformation_lock = false;
 
 		//The newest added component is pushed back as a new single unit set
@@ -1828,20 +1793,18 @@ void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEven
 	}
 	if (pcc_event == PCC_NEW_POINT_CLOUD && !projectLoading_in_process)
 	{
-		if (pc.get_nr_components() != user_modified.size())
+		if (pc.get_nr_components() != file_paths.size())
 		{
 			//Problem: how to tell if append or deleteionloading is applied
 			//Solution: check num of components first and flush and rewrite
 			//A non append operation has been made, reset stacks and reiterate them
 			file_paths.clear();
-			user_modified.clear();
 
 			void* handle = cgv::utils::file::find_first(directory_name + "/*.*");
 			while (handle) {
 				if (!cgv::utils::file::find_directory(handle))
 				{
 					file_paths.push_back(directory_name + "/" + cgv::utils::file::find_name(handle));
-					user_modified.push_back(false);
 				}
 				handle = cgv::utils::file::find_next(handle);
 			}
@@ -1893,7 +1856,6 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 			float x = float(x_room_max / nr);
 			pc.component_translation(i).set(x_room_min + 0.2, Crd(1.8),Crd(i * x));
 			pc.component_rotation(i) = defaultFacing;
-			user_modified[i] = false;
 		}
 	}
 	push_back_state();
@@ -1914,7 +1876,6 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 			if (!cgv::utils::file::find_directory(handle)) 
 			{
 				file_paths.push_back(directory_name + "/" + cgv::utils::file::find_name(handle));
-				user_modified.push_back(false);
 			}
 			handle = cgv::utils::file::find_next(handle);
 		}
@@ -1927,7 +1888,6 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 	for (int i = 0; i < int(pc.get_nr_components()); i++) {
 		if (member_ptr == &pc.component_rotation(i) || member_ptr == &pc.component_translation(i))
 		{
-			user_modified.at(i) = true;
 			break;
 		}	
 	}
@@ -1945,7 +1905,7 @@ void vr_point_cloud_aligner::drag_scan(cgv::math::fmat<float,3,3> rotation, Dir 
 	controller_pose_mat.set_col(3, vec4(translation, 1));
 
 	std::vector<int> picked_ids = picked_group->get_component_IDs();
-	for (int x = 0; x < picked_ids.size(); ++x)
+	for (int x = 0; x < int(picked_ids.size()); ++x)
 	{
 		mat4 temp = controller_pose_mat*local_pose_mat_stack[x];
 		mat3 new_rot;

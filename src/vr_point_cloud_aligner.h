@@ -50,7 +50,6 @@ private:
 	std::vector<Box> room_boxes;
 	std::vector<Clr> sample_box_colors;
 	std::vector<Clr> room_colors;
-	std::vector<bool> user_modified;
 	std::vector<std::string> file_paths;
 	std::vector<program_state> program_state_stack;
 	int pss_count;
@@ -107,7 +106,7 @@ private:
 	float find_deepest_BB_point();
 
 	///This function repositions the scans above the centre table
-	void repostion_above_table();
+	void reposition_above_table();
 
 	/// stores information about aligned sets of scans
 	std::list<constructed_set> sets;
@@ -148,8 +147,6 @@ private:
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
-	//aligns not user modified scans along the line
-	void position_scans();
 	//Helper function
 	Clr generate_a_valid_color(int color);
 	///GUI for uniting components
@@ -159,11 +156,6 @@ private:
 
 	///indicates that a scan is dragged by the controller at the moment
 	bool drag_active;
-	///current drag position
-	Pnt current_drag_position;
-	Dir current_drag_x_axis;
-	Dir current_drag_y_axis;
-	Dir current_drag_z_axis;
 
 	///Saves the draging distance for an optimal point rotation
 	float current_picked_distance;
