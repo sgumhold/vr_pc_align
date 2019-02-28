@@ -4,9 +4,8 @@
 #include <libs/cgv_gl/gl/gl.h>
 #include "cgv/gui/animate.h"
 
-#ifdef _DEBUG
+
 constexpr auto ANIMATION_DURATION = 2;
-#endif // _DEBUG
 
 program_state::program_state()
 {

@@ -10,6 +10,10 @@
 #include "program_state.h"
 #include "../sparseicp/ICP.h"
 #include <list>
+// these are the vr specific headers
+#include <vr/vr_driver.h>
+#include <cg_vr/vr_server.h>
+#include <vr_view_interactor.h>
 
 #include "lib_begin.h"
 
@@ -17,7 +21,7 @@
 /** the point cloud view adds a gui to the gl_point_cloud_drawable_base and adds
     some basic processing like normal computation as well as some debug rendering
 	of the neighbor graph*/
-class CGV_API vr_point_cloud_aligner : public point_cloud_interactable  
+class CGV_API vr_point_cloud_aligner : public point_cloud_interactable
 {
 protected:
 
@@ -31,11 +35,21 @@ protected:
 	///flag for the icp is in process
 	bool icp_executing;
 
+	// keep deadzone and precision vector for left controller
+	cgv::gui::vr_server::vec_flt_flt left_deadzone_and_precision;
+	// store handle to vr kit of which left deadzone and precision is configured
+	void* last_kit_handle;
+
+	// length of to be rendered rays
+	float ray_length;
+
+	// keep reference to vr_view_interactor
+	vr_view_interactor* vr_view_ptr;
+
 private:
 	std::vector<Box> room_boxes;
 	std::vector<Clr> sample_box_colors;
 	std::vector<Clr> room_colors;
-	std::vector<bool> user_modified;
 	std::vector<std::string> file_paths;
 	std::vector<program_state> program_state_stack;
 	int pss_count;
@@ -62,9 +76,11 @@ private:
 	void restore_state(int i);
 
 	/// Checks for intersections and updates picked groups
-	void try_group_pick();
+	bool try_group_pick();
 	/// Checks for intersections and updates picked components to seperate
 	void try_component_pick();
+	/// Deselects all groups and restores their colors
+	void deselect_groups();
 	/// Flag to show that a seperation is in process
 	bool seperation_in_process;
 	/// a chosen component to seperate
@@ -75,7 +91,8 @@ private:
 	void seperate_component();
 	/// animates a group to split
 	void display_seperation_selection();
-
+	/// scales all scans by the scaling_factor
+	bool scale(float scaling_factor);
 	///This flag shows if the subsampling variables are changed
 	bool subsample_changed;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;
@@ -89,13 +106,13 @@ private:
 	float find_deepest_BB_point();
 
 	///This function repositions the scans above the centre table
-	void repostion_above_table();
+	void reposition_above_table();
 
 	/// stores information about aligned sets of scans
 	std::list<constructed_set> sets;
 
 	/// homogeneous matrix used to unproject mouse locations
-	cgv::render::context::mat_type DPV;
+	dmat4 DPV;
 	/// whether a picked point is available
 	bool have_picked_point;
 	/// position of picked point
@@ -130,14 +147,22 @@ private:
 
 	//Generates a room Box, Table and pointcloud holders
 	void generate_room_boxes();
-	//aligns not user modified scans along the line
-	void position_scans();
 	//Helper function
 	Clr generate_a_valid_color(int color);
 	///GUI for uniting components
 	void animate_pending_unite_blink();
 	///The actual uniting function
 	void unite(bool unite);
+
+	///indicates that a scan is dragged by the controller at the moment
+	bool drag_active;
+
+	///Saves the draging distance for an optimal point rotation
+	float current_picked_distance;
+	///Saves the local pose of a group/component for dragging
+	std::vector<cgv::math::fmat<float, 4, 4>> local_pose_mat_stack;
+	///calculates the local pose of the picked group/component
+	void calculate_local_pose(const float*);
 
 protected:
 	/**@name access to point cloud; always use these functions to access the point cloud data structure; if you need more access add more functions here*/
@@ -170,6 +195,8 @@ public:
 
 	void timer_event(double t, double dt);
 
+	void construct_environment(float s, float ew, float ed, float eh, float w, float d, float h);
+
 	//**@name self reflection of class */
 	//@{
 	/// return type name of point_cloud_viewer
@@ -198,6 +225,7 @@ public:
 	/// This flag shows if the reset function is working on the transformations at this given point of time
 	bool transformation_lock;
 
+	float current_scaling_factor;
 	/// transforms a rotation and translation from global to local coordinates of a given Point
 	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Pnt & local_translation, const Qat & local_rotation);
 	/// transforms a rotation and translation from local to global coordinates of a given Point
@@ -224,6 +252,8 @@ public:
 	void reset_componets_transformations();
 	/// used to update all dependent variables in case of changes to member variables
 	void on_set(void* member_ptr);
+	void drag_scan(cgv::math::fmat<float,3,3> rotation, Dir translation);
+	void on_device_change(void * kit_handle, bool attach);
 	/// user interface creation
 	void create_gui();
 	//@}
