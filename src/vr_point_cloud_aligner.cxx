@@ -774,6 +774,24 @@ void vr_point_cloud_aligner::try_component_pick()
 	}
 }
 
+void vr_point_cloud_aligner::deselect_groups()
+{
+	printf("deselected groups\n");
+	std::vector<int> toChange = picked_group->get_component_IDs();
+	for (int x = 0; x < int(toChange.size()); ++x)
+	{
+		pc.component_color(toChange.at(x)) = oldColor;
+	}
+	toChange = previous_picked_group->get_component_IDs();
+	for (int x = 0; x < int(toChange.size()); ++x)
+	{
+		pc.component_color(toChange.at(x)) = even_older_color;
+	}
+	picked_group = &global_placeholder_set;
+	previous_picked_group = &global_placeholder_set;
+}
+
+
 bool vr_point_cloud_aligner::try_group_pick()
 {
 	if (transformation_lock || pending_unite)
@@ -822,24 +840,7 @@ bool vr_point_cloud_aligner::try_group_pick()
 				if (s.find_component_ID(a))
 				{
 					new_pick = &s;
-
-					if ((new_pick->get_ID() == (previous_picked_group->get_ID()) || new_pick->get_ID() == picked_group->get_ID()) && new_pick->get_ID() != -1)
-					{
-						printf("deselected groups\n");
-						std::vector<int> toChange = picked_group->get_component_IDs();
-						for (int x = 0; x < int(toChange.size()); ++x)
-						{
-							pc.component_color(toChange.at(x)) = oldColor;
-						}
-						toChange = previous_picked_group->get_component_IDs();
-						for (int x = 0; x < int(toChange.size()); ++x)
-						{
-							pc.component_color(toChange.at(x)) = even_older_color;
-						}
-						picked_group = &global_placeholder_set;
-						previous_picked_group = &global_placeholder_set;
-					}
-					else if (new_pick->get_ID() >= 0)
+					if (new_pick->get_ID() >= 0)
 					{
 						printf("Picked a group\n");
 						//reset colors of older group
@@ -1470,7 +1471,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 			case cgv::gui::EID_KEY:
 			{
 				cgv::gui::vr_key_event& vrke = static_cast<cgv::gui::vr_key_event&>(e);
-				if (vrke.get_action() == cgv::gui::KA_PRESS || vrke.get_action() == cgv::gui::KA_REPEAT)
+				if (vrke.get_action() == cgv::gui::KA_RELEASE || vrke.get_action() == cgv::gui::KA_REPEAT)
 				{
 					switch (vrke.get_key())
 					{
@@ -1506,7 +1507,8 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 								restore_state(pss_count - 2);
 							return true;
 						case vr::VR_RIGHT_STICK_RIGHT:
-							restore_state(pss_count);
+							if(!transformation_lock)
+								restore_state(pss_count);
 							return true;
 						case vr::VR_RIGHT_STICK_DOWN:
 							icp_executing = true;
@@ -1528,18 +1530,24 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							}
 							transformation_lock = false;
 							return true;
+
+
+						case vr::VR_LEFT_BUTTON0:
+							if (!transformation_lock)
+							{
+								transformation_lock = true;
+								reset_componets_transformations();
+								transformation_lock = false;
+							}
+							return true;
+						case vr::VR_LEFT_MENU:
+							if (!transformation_lock)
+							{
+								deselect_groups();
+							}
+							return true;
 					}
 				}
-				if (vrke.get_action() == cgv::gui::KA_RELEASE)
-				{
-					if (icp_executing) 
-					{
-						pending_unite = true;
-						icp_executing = false;
-					}
-					return true;
-				}
-				break;
 			}
 			case cgv::gui::EID_STICK:
 			{
@@ -1598,11 +1606,12 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							return true;
 						}
 					}
-					///This means the throttle is now below the dragging threshold
+					///This means the throttle is now below the dragging threshold -> Dragging ends and the state should be pushed back if the user dragged something
 					else 
 					{
+						if(drag_active)
+							push_back_state();
 						drag_active = false;
-						push_back_state();
 						return true;
 					}
 				}
@@ -1860,7 +1869,6 @@ void vr_point_cloud_aligner::on_set(void* member_ptr)
 		if (member_ptr == &pc.component_rotation(i) || member_ptr == &pc.component_translation(i))
 		{
 			user_modified.at(i) = true;
-			push_back_state();
 			break;
 		}	
 	}

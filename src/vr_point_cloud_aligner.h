@@ -80,6 +80,8 @@ private:
 	bool try_group_pick();
 	/// Checks for intersections and updates picked components to seperate
 	void try_component_pick();
+	/// Deselects all groups and restores their colors
+	void deselect_groups();
 	/// Flag to show that a seperation is in process
 	bool seperation_in_process;
 	/// a chosen component to seperate
