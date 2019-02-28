@@ -92,7 +92,8 @@ private:
 	void seperate_component();
 	/// animates a group to split
 	void display_seperation_selection();
-
+	/// scales all scans by the scaling_factor
+	bool scale(float scaling_factor);
 	///This flag shows if the subsampling variables are changed
 	bool subsample_changed;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;

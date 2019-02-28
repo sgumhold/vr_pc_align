@@ -1462,6 +1462,23 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	post_redraw();
 }
 
+bool vr_point_cloud_aligner::scale(float scaling_factor)
+{
+	//Note: does scaling affect the ground truth? Has the ground truth to be scaled along with the scans to be used?
+
+	if(pc.get_nr_components() < 1)
+		return false;
+	// If the user already modified his scans, rescaling is not posible, because it would destroy current alignments.
+	for (int x = 0; x < int(user_modified.size()); ++x)
+	{
+		if (user_modified[x])
+			return false;
+	}
+	// Use a non uniform quaternion for scaling?
+	cgv::math::quaternion<float> scaling_quat(scaling_factor, 1, 1, 1);
+	pc.rotate(scaling_quat);
+}
+
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 {
 	if ((e.get_flags() & cgv::gui::EF_VR) != 0)
@@ -1475,6 +1492,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				{
 					switch (vrke.get_key())
 					{
+						//right controller actions
 						case vr::VR_RIGHT_BUTTON0:
 							if (!seperation_in_process && picked_group->get_ID() != -1 && picked_group->get_component_IDs().size() > 1)
 							{
@@ -1531,7 +1549,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							transformation_lock = false;
 							return true;
 
-
+							//Left controlller actions
 						case vr::VR_LEFT_BUTTON0:
 							if (!transformation_lock)
 							{
@@ -1835,6 +1853,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 			float x = float(x_room_max / nr);
 			pc.component_translation(i).set(x_room_min + 0.2, Crd(1.8),Crd(i * x));
 			pc.component_rotation(i) = defaultFacing;
+			user_modified[i] = false;
 		}
 	}
 	push_back_state();
