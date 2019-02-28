@@ -52,7 +52,7 @@
 #ifdef _DEBUG
 #define SAMPLE_COUNT 100
 #else 
-#define SAMPLE_COUNT 10000
+#define SAMPLE_COUNT 1000
 #endif
 ///Module 1 Startup methods
 
@@ -90,6 +90,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	even_older_color = RGBA(1, 1, 1, 1);
 	defaultFacing = cgv::math::quaternion<float>(1, 0, 0, 0);
 	projectLoading_in_process = false;
+	current_scaling_factor = 1.0;
 
 	connect(cgv::gui::get_animation_trigger().shoot, this, &vr_point_cloud_aligner::timer_event);
 	last_kit_handle = 0;
@@ -101,16 +102,6 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 
 void vr_point_cloud_aligner::timer_event(double t, double dt)
 {
-	if(icp_executing)
-	{
-		if (!transformation_lock) 
-		{
-			transformation_lock = true;
-			std::thread icp_thread(&vr_point_cloud_aligner::start_ICP,this);
-			icp_thread.detach();
-			return;
-		}
-	}
 	if(pending_unite)
 	{
 		if (t > time_blink_counter + 0.5)
@@ -554,6 +545,7 @@ float vr_point_cloud_aligner::find_deepest_BB_point()
 		Box current_box = pc.box(searched_ids[x]);
 		for (int y = 0; y < 8; ++y)
 		{
+			if(current_box.is_valid())
 			transformed_Pnts.push_back(transform_to_global(current_box.get_corner(y), pc.component_translation(x), pc.component_rotation(x)));
 		}
 	}
@@ -564,6 +556,11 @@ float vr_point_cloud_aligner::find_deepest_BB_point()
 		{
 			lowest_y = transformed_Pnts.at(x).y();
 		}
+	}
+	if (lowest_y == INFINITY)
+	{
+		printf("BB not valid!\n");
+		return TABLE_HEIGT;
 	}
 	return lowest_y;
 }
@@ -607,100 +604,104 @@ void vr_point_cloud_aligner::repostion_above_table()
 
 void vr_point_cloud_aligner::start_ICP()
 {
-	int nr_of_all_points_source = 0;
-	std::vector<int> Ids_source = picked_group->get_component_IDs();
-	for (int i = 0; i < int(Ids_source.size()); ++i)
-	{
-		component_info a = pc.component_point_range(Ids_source.at(i));
-		nr_of_all_points_source += a.nr_points;
-	}
-	int subsampling_range = int(round(nr_of_all_points_source / SAMPLE_COUNT));
-	if (subsampling_range < 1)
-	{
-		subsampling_range = 1;
-	}
-	if (subsample_changed)
-	{
-		subsample(vertices_source, vertices_source_copy, vertices_target,subsampling_range);
-		subsample_changed = false;
-	}
-	
-	ICP::Parameters par;
-	par.p = .5;
-	par.max_icp = 100;
-	auto tic = std::chrono::steady_clock::now();
-	ICP::point_to_point(vertices_source, vertices_target, par);
-	auto toc = std::chrono::steady_clock::now();
-	double time_ms = std::chrono::duration <double, std::milli>(toc - tic).count();
-	printf("ICP finished, runtime: %f \n",time_ms);
-	///Now the vertices_source is recalculated and overwritten. we now need to calculate back the actual rotation and translation.
-	///This should be now possible through using some points in the source cloud that have been transformed. Because of correspondencies there is now a closed solution form
-	///Using this method the first 4 points should be enough to solve this. The test case now uses all points.
-	Eigen::Affine3d A = kabsch::Find3DAffineTransform(vertices_source_copy, vertices_source);
-	/*for (int m = 0; m < 5; ++m) 
-	{
-		printf("First 5 Points of ICP:\n");
-		printf("ICPresult %d: %f, %f, %f; Original: %f, %f, %f; Target: %f, %f, %f \n", m, vertices_source(0, m), vertices_source(1, m), vertices_source(2, m), vertices_source_copy(0, m), vertices_source_copy(1, m), vertices_source_copy(2, m), vertices_target(0, m), vertices_target(1, m), vertices_target(2, m));
-	}*/
-	Eigen::Vector3d translation_vec = A.translation();
-	cgv::math::mat<float> casted_mat;
-	casted_mat.resize(3, 3);
-	Eigen::Matrix<double, 3, 3> R = A.rotation();
-	
-	double m00 = R(0, 0),m01=R(0,1),m02 =R(0,2), m10=R(1,0), m11 = R(1, 1), m12 = R(1,2), m20 = R(2,0), m21 = R(2,1), m22 = R(2, 2);
-	double qx, qy, qz, qw;
-	double tr = m00 + m11 + m22;
+	//int nr_of_all_points_source = 0;
+	//std::vector<int> Ids_source = picked_group->get_component_IDs();
+	//for (int i = 0; i < int(Ids_source.size()); ++i)
+	//{
+	//	component_info a = pc.component_point_range(Ids_source.at(i));
+	//	nr_of_all_points_source += a.nr_points;
+	//}
+	//int subsampling_range = int(round(nr_of_all_points_source / SAMPLE_COUNT));
+	//if (subsampling_range < 1)
+	//{
+	//	subsampling_range = 1;
+	//}
+	//if (subsample_changed)
+	//{
+	//	subsample(vertices_source, vertices_source_copy, vertices_target,subsampling_range);
+	//	subsample_changed = false;
+	//}
+	//
+	//ICP::Parameters par;
+	//par.p = .5;
+	//par.max_icp = 100;
+	//auto tic = std::chrono::steady_clock::now();
+	//ICP::point_to_point(vertices_source, vertices_target, par);
+	//auto toc = std::chrono::steady_clock::now();
+	//double time_ms = std::chrono::duration <double, std::milli>(toc - tic).count();
+	//printf("ICP finished, runtime: %f \n",time_ms);
+	/////Now the vertices_source is recalculated and overwritten. we now need to calculate back the actual rotation and translation.
+	/////This should be now possible through using some points in the source cloud that have been transformed. Because of correspondencies there is now a closed solution form
+	/////Using this method the first 4 points should be enough to solve this. The test case now uses all points.
+	//Eigen::Affine3d A = kabsch::Find3DAffineTransform(vertices_source_copy, vertices_source);
+	///*for (int m = 0; m < 5; ++m) 
+	//{
+	//	printf("First 5 Points of ICP:\n");
+	//	printf("ICPresult %d: %f, %f, %f; Original: %f, %f, %f; Target: %f, %f, %f \n", m, vertices_source(0, m), vertices_source(1, m), vertices_source(2, m), vertices_source_copy(0, m), vertices_source_copy(1, m), vertices_source_copy(2, m), vertices_target(0, m), vertices_target(1, m), vertices_target(2, m));
+	//}*/
+	//Eigen::Vector3d translation_vec = A.translation();
+	//cgv::math::mat<float> casted_mat;
+	//casted_mat.resize(3, 3);
+	//Eigen::Matrix<double, 3, 3> R = A.rotation();
+	//
+	//double m00 = R(0, 0),m01=R(0,1),m02 =R(0,2), m10=R(1,0), m11 = R(1, 1), m12 = R(1,2), m20 = R(2,0), m21 = R(2,1), m22 = R(2, 2);
+	//double qx, qy, qz, qw;
+	//double tr = m00 + m11 + m22;
 
-		if (tr > 0)
-		{
-			double S = sqrt(tr + 1.0) * 2; // S=4*qw 
-			qw = 0.25 * S;
-			qx = (m21 - m12) / S;
-			qy = (m02 - m20) / S;
-			qz = (m10 - m01) / S;
-		}
-		else if ((m00 > m11)&(m00 > m22))
-		{
-			double S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx 
-			qw = (m21 - m12) / S;
-			qx = 0.25 * S;
-			qy = (m01 + m10) / S;
-			qz = (m02 + m20) / S;
-		}
-		else if (m11 > m22)
-		{
-			double S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
-			qw = (m02 - m20) / S;
-			qx = (m01 + m10) / S;
-			qy = 0.25 * S;
-			qz = (m12 + m21) / S;
-		}
-		else
-		{
-			double S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
-			qw = (m10 - m01) / S;
-			qx = (m02 + m20) / S;
-			qy = (m12 + m21) / S;
-			qz = 0.25 * S;
-		}
-		
-	std::vector<int> temp_IDs = picked_group->get_component_IDs();
-	if (!translation_vec.allFinite())
-	{
-		printf("Kabsch or ICP Failure!");
-	}
-	else 
-	{
-		//cgv::gui::animate_with_axis_rotation(,,,2,2,false)
-		for (int i = 0; i < int(temp_IDs.size()); ++i)
-		{
-			pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
-			//pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
-			cgv::gui::animate_with_linear_blend(pc.component_translation(temp_IDs.at(i)), Dir(translation_vec.x(), translation_vec.y(), translation_vec.z()), ANIMATION_DURATION, 0, false);
+	//	if (tr > 0)
+	//	{
+	//		double S = sqrt(tr + 1.0) * 2; // S=4*qw 
+	//		qw = 0.25 * S;
+	//		qx = (m21 - m12) / S;
+	//		qy = (m02 - m20) / S;
+	//		qz = (m10 - m01) / S;
+	//	}
+	//	else if ((m00 > m11)&(m00 > m22))
+	//	{
+	//		double S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx 
+	//		qw = (m21 - m12) / S;
+	//		qx = 0.25 * S;
+	//		qy = (m01 + m10) / S;
+	//		qz = (m02 + m20) / S;
+	//	}
+	//	else if (m11 > m22)
+	//	{
+	//		double S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
+	//		qw = (m02 - m20) / S;
+	//		qx = (m01 + m10) / S;
+	//		qy = 0.25 * S;
+	//		qz = (m12 + m21) / S;
+	//	}
+	//	else
+	//	{
+	//		double S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
+	//		qw = (m10 - m01) / S;
+	//		qx = (m02 + m20) / S;
+	//		qy = (m12 + m21) / S;
+	//		qz = 0.25 * S;
+	//	}
+	//	
+	//std::vector<int> temp_IDs = picked_group->get_component_IDs();
+	//if (!translation_vec.allFinite())
+	//{
+	//	printf("Kabsch or ICP Failure!");
+	//}
+	//else 
+	//{
+	//	//cgv::gui::animate_with_axis_rotation(,,,2,2,false)
+	//	for (int i = 0; i < int(temp_IDs.size()); ++i)
+	//	{
+	//		pc.component_rotation(temp_IDs.at(i)).set(qw, qx, qy, qz);
+	//		//pc.component_translation(temp_IDs.at(i)).set(translation_vec.x(), translation_vec.y(), translation_vec.z());
+	//		cgv::gui::animate_with_linear_blend(pc.component_translation(temp_IDs.at(i)), Dir(translation_vec.x(), translation_vec.y(), translation_vec.z()), ANIMATION_DURATION, 0, false);
 
-		}
-	}
+	//	}
+	//}
+	//Set important flags when finished!
 	transformation_lock = false;
+	icp_executing = false;
+	pending_unite = true;
+
 	post_redraw();
 }
 
@@ -721,7 +722,7 @@ bool vr_point_cloud_aligner::ensure_view_pointer()
 
 void vr_point_cloud_aligner::try_component_pick()
 {
-	if (transformation_lock && !seperation_in_process) 
+	if (!seperation_in_process) 
 	{
 		return;
 	}
@@ -840,7 +841,8 @@ bool vr_point_cloud_aligner::try_group_pick()
 				if (s.find_component_ID(a))
 				{
 					new_pick = &s;
-					if (new_pick->get_ID() >= 0)
+					//only update if new pick is really new!
+					if (new_pick->get_ID() >= 0 && new_pick->get_ID() != picked_group->get_ID())
 					{
 						printf("Picked a group\n");
 						//reset colors of older group
@@ -1341,6 +1343,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	{	
 		printf("Normals need to be calculated first!");
 		seperation_in_process = false;
+		transformation_lock = false;
 		return;
 	}
 	//calculate per component average normal to estimate optimal splitting direction
@@ -1462,7 +1465,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	post_redraw();
 }
 
-bool vr_point_cloud_aligner::scale(float scaling_factor)
+bool vr_point_cloud_aligner::scale(float scaling_difference)
 {
 	//Note: does scaling affect the ground truth? Has the ground truth to be scaled along with the scans to be used?
 
@@ -1474,9 +1477,27 @@ bool vr_point_cloud_aligner::scale(float scaling_factor)
 		if (user_modified[x])
 			return false;
 	}
-	// Use a non uniform quaternion for scaling?
-	cgv::math::quaternion<float> scaling_quat(scaling_factor, 1, 1, 1);
-	pc.rotate(scaling_quat);
+	//Reverse old scaling
+	mat4 scaling_mat;
+	scaling_mat.identity();
+
+	scaling_mat(0, 0) = 1/current_scaling_factor;
+	scaling_mat(1, 1) = 1/current_scaling_factor;
+	scaling_mat(2, 2) = 1/current_scaling_factor;
+	scaling_mat(3, 3) = 1;
+	pc.transform(scaling_mat);
+	
+	//now apply new scaling
+	current_scaling_factor += scaling_difference;
+	scaling_mat.identity();
+	
+	scaling_mat(0, 0) = current_scaling_factor;
+	scaling_mat(1, 1) = current_scaling_factor;
+	scaling_mat(2, 2) = current_scaling_factor;
+	scaling_mat(3, 3) = 1;
+	pc.transform(scaling_mat);
+	//Scalierung mit transform -> Scalierungsfaktor speichern!
+	//UpdateBoxes!
 }
 
 bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
@@ -1529,10 +1550,15 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 								restore_state(pss_count);
 							return true;
 						case vr::VR_RIGHT_STICK_DOWN:
+						{
 							icp_executing = true;
 							transformation_lock = true;
+							printf("ICP pressed\n");
+							//std::thread icp_thread(&vr_point_cloud_aligner::start_ICP, this);
+							//icp_thread.detach();
 							start_ICP();
 							return true;
+						}
 						case vr::VR_RIGHT_MENU:
 							if (pending_unite) {
 								unite(true);
@@ -1578,10 +1604,19 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					break;
 				case cgv::gui::SA_MOVE:
 				case cgv::gui::SA_DRAG:
-					if (drag_active && !local_pose_mat_stack.empty()) {
-						for (auto& M : local_pose_mat_stack) {
-							M(2, 3) -= vrse.get_dy();
-						}
+					if (vrse.get_controller_index() == MAIN_CONTROLLER)
+					{
+						if (drag_active && !local_pose_mat_stack.empty()) {
+							for (auto& M : local_pose_mat_stack) {
+								M(2, 3) -= vrse.get_dy();
+							}
+							return true;
+					}
+					}
+					else {
+						if (scale(vrse.get_dy()/5))
+							printf("Scaled scans to %f \n", current_scaling_factor);
+						
 						return true;
 					}
 				}
@@ -1616,7 +1651,12 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						{
 							return true;
 						}
-						if (try_group_pick())
+						else if (seperation_in_process)
+						{
+							try_component_pick();
+							return true;
+						}
+						else if (try_group_pick())
 						{
 							//Dragging blocks the picker so that the picker is only called once
 							drag_active = true;

@@ -233,6 +233,7 @@ public:
 	/// This flag shows if the reset function is working on the transformations at this given point of time
 	bool transformation_lock;
 
+	float current_scaling_factor;
 	/// transforms a rotation and translation from global to local coordinates of a given Point
 	point_cloud_types::Pnt transform_to_local(const Pnt & in, const Pnt & local_translation, const Qat & local_rotation);
 	/// transforms a rotation and translation from local to global coordinates of a given Point
