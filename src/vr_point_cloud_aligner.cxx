@@ -1477,8 +1477,20 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				{
 					switch (vrke.get_key())
 					{
-						//right controller actions
-						case vr::VR_RIGHT_BUTTON0:
+						//Left controlller actions
+
+						//Grip button -> reset Function
+						case vr::VR_LEFT_BUTTON0:
+							if (!transformation_lock)
+							{
+								transformation_lock = true;
+								reset_componets_transformations();
+								transformation_lock = false;
+							}
+							return true;
+
+						//left menu -> seperation selection
+						case vr::VR_LEFT_MENU:
 							if (!seperation_in_process && picked_group->get_ID() != -1 && picked_group->get_component_IDs().size() > 1)
 							{
 								seperation_in_process = true;
@@ -1488,13 +1500,17 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 								post_redraw();
 							}
 							return true;
-						case vr::VR_RIGHT_STICK_UP:
+
+						//left touchpad up press -> position above table
+						case vr::VR_LEFT_STICK_UP:
 							if (!transformation_lock)
 							{
 								reposition_above_table();
 							}
 							return true;
-						case vr::VR_RIGHT_STICK_LEFT:
+
+						//left touchpad left press -> abort action or strg + z
+						case vr::VR_LEFT_STICK_LEFT:
 							if (pending_unite) {
 								unite(false);
 								pending_unite = false;
@@ -1509,54 +1525,40 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							else
 								restore_state(pss_count - 2);
 							return true;
-						case vr::VR_RIGHT_STICK_RIGHT:
+
+						//left touchpad right press -> restore latest action (strg + y)
+						case vr::VR_LEFT_STICK_RIGHT:
 							if(!transformation_lock)
 								restore_state(pss_count);
 							return true;
+
+						// right touchpad down -> ICP (deprecated)
 						case vr::VR_RIGHT_STICK_DOWN:
 						{
-							icp_executing = true;
-							transformation_lock = true;
-							printf("ICP pressed\n");
+							//Not used anymore
+							//icp_executing = true;
+							//transformation_lock = true;
+							//printf("ICP pressed\n");
 							//std::thread icp_thread(&vr_point_cloud_aligner::start_ICP, this);
 							//icp_thread.detach();
-							start_ICP();
+							//start_ICP();
 							return true;
 						}
+
+						// right menu button -> merge 2 groups
 						case vr::VR_RIGHT_MENU:
-							if (pending_unite) {
+							if (picked_group->get_ID() != -1 && previous_picked_group->get_ID() != -1 && picked_group->get_ID() != previous_picked_group->get_ID()) {
+								transformation_lock = true;
 								unite(true);
-								pending_unite = false;
-							}
-							else if (seperation_in_process)
-							{
-								if (picked_component_valid)
-								{
-									seperation_in_process = false;
-									seperate_component();
-								}
+								//pending_unite = false;
 							}
 							transformation_lock = false;
-							return true;
-
-							//Left controlller actions
-						case vr::VR_LEFT_BUTTON0:
-							if (!transformation_lock)
-							{
-								transformation_lock = true;
-								reset_componets_transformations();
-								transformation_lock = false;
-							}
-							return true;
-						case vr::VR_LEFT_MENU:
-							if (!transformation_lock)
-							{
-								deselect_groups();
-							}
 							return true;
 					}
 				}
 			}
+
+			// The touchpads touch handling
 			case cgv::gui::EID_STICK:
 			{
 				cgv::gui::vr_stick_event& vrse = static_cast<cgv::gui::vr_stick_event&>(e);
@@ -1578,7 +1580,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					}
 					}
 					else {
-						/*
+						/* Scaling is now restricted to cfg data calls
 						if (scale(vrse.get_dy()/5))
 							printf("Scaled scans to %f \n", current_scaling_factor);
 						*/
@@ -1588,6 +1590,8 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				break;
 				return true;
 			}
+
+			//Pose events handling, update viewing and picking point!
 			case cgv::gui::EID_POSE:
 			{
 				cgv::gui::vr_pose_event& vrpo = static_cast<cgv::gui::vr_pose_event&>(e);
@@ -1603,6 +1607,8 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				}
 				return true;
 			}
+
+			//The throttle events, mapped to picking (right) and deselection (left)
 			case cgv::gui::EID_THROTTLE:
 			{
 				if (transformation_lock)
@@ -1638,9 +1644,23 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						return true;
 					}
 				}
+				//It is not the main controller, left controller for deselection when throttle is above threshhold
+				else
+				{
+					if (vrth.get_value() > THROTTLE_THRESHOLD)
+					{
+						if (!transformation_lock)
+						{
+							deselect_groups();
+						}
+					}
+					return true;
+				}
 			}
 		}
 	}
+
+	//Key events are still there. They use the old debugging and flag standard so use with caution!
 	else if (e.get_kind() == cgv::gui::EID_KEY) {
 		cgv::gui::key_event& ke = static_cast<cgv::gui::key_event&>(e);
 		if (ke.get_action() == cgv::gui::KA_PRESS || ke.get_action() == cgv::gui::KA_REPEAT) {
@@ -1770,6 +1790,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 	// pass on remaining events to base class
 	return point_cloud_interactable::handle(e);
 }
+
 void vr_point_cloud_aligner::on_point_cloud_change_callback(PointCloudChangeEvent pcc_event)
 {
 	point_cloud_interactable::on_point_cloud_change_callback(pcc_event);
