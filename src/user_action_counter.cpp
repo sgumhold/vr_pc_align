@@ -66,7 +66,7 @@ std::stringstream user_action_counter::print_results_to_printable_string()
 {
 	std::string line="";
 	std::stringstream iss;
-	iss << "Total actions: " << (scan_drag_count + scan_pick_count + scan_deselect_count + scan_group_seperate_display_count + group_seperate_confirm_count + reverse_count + restore_count + position_count + reset_count + unite_count) + "\n";
+	iss << "Total actions: " << (scan_drag_count + scan_pick_count + scan_deselect_count + scan_group_seperate_display_count + group_seperate_confirm_count + reverse_count + restore_count + position_count + reset_count + unite_count) << "\n";
 	iss << "SCAN_DRAG: " << scan_drag_count << "\n";
 	iss << "SCAN_PICK: " << scan_pick_count << "\n";
 	iss << "SCAN_DESELECT: " << scan_deselect_count << "\n";

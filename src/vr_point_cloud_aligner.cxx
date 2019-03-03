@@ -43,7 +43,7 @@
 #define y_room_min 0
 #define z_room_min -1.75
 #define x_room_max 1.75
-#define y_room_max 7
+#define y_room_max 3.5
 #define z_room_max 1.75
 
 #define MAIN_CONTROLLER 1
@@ -98,6 +98,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	cgv::gui::connect_gamepad_server();
 
 	drag_active = false;
+	deselect_active = false;
 	uac = user_action_counter();
 }
 
@@ -119,8 +120,8 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	room_boxes.clear();
 	room_colors.clear();
 	Box room;
-	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min - 0.2), Crd(z_room_min)));
-	room.add_point(Pnt(Crd(x_room_max), Crd(y_room_min), Crd(z_room_max)));
+	room.add_point(Pnt(Crd(x_room_min), Crd(y_room_min), Crd(z_room_min)));
+	room.add_point(Pnt(Crd(x_room_max), Crd(y_room_min-0.2), Crd(z_room_max)));
 	room_boxes.push_back(room);
 	room_colors.push_back(generate_a_valid_color(3));
 
@@ -169,6 +170,53 @@ void vr_point_cloud_aligner::generate_room_boxes()
 	line.add_point(Pnt(Crd(x_room_min + .05), Crd(2), z_room_max));
 	room_boxes.push_back(line);
 	room_colors.push_back(generate_a_valid_color(1));
+
+	//The fence on the room edges
+	Box fence1;
+	Box fence2;
+	Box fence3;
+	Box fence4;
+	
+	fence1.add_point(Pnt(x_room_max + 0.2, TABLE_HEIGT, x_room_max + 0.2));
+	fence1.add_point(Pnt(x_room_min - 0.2, TABLE_HEIGT- 0.2, x_room_max));
+	room_boxes.push_back(fence1);
+	room_colors.push_back(generate_a_valid_color(1));
+
+	//fence2.add_point(Pnt(x_room_min + 0.2, TABLE_HEIGT, x_room_min - 0.2));
+	//fence2.add_point(Pnt(x_room_min - 0.2, TABLE_HEIGT - 0.2, z_room_max));
+	//room_boxes.push_back(fence2);
+	//room_colors.push_back(generate_a_valid_color(1));
+
+	fence3.add_point(Pnt(x_room_max + 0.2, TABLE_HEIGT, z_room_min - 0.2));
+	fence3.add_point(Pnt(x_room_min - 0.2, TABLE_HEIGT - 0.2, z_room_min));
+	room_boxes.push_back(fence3);
+	room_colors.push_back(generate_a_valid_color(1));
+
+	fence4.add_point(Pnt(x_room_max + 0.2, TABLE_HEIGT, x_room_min));
+	fence4.add_point(Pnt(x_room_max , TABLE_HEIGT - 0.2, z_room_max));
+	room_boxes.push_back(fence4);
+	room_colors.push_back(generate_a_valid_color(1));
+
+	for (int x = 0; x < 10; x++)
+	{
+		Box temp1;
+		Box temp2;
+		Box temp3;
+		temp1.add_point(Pnt(x_room_min + (x/ (1.5 * x_room_max)), TABLE_HEIGT - 0.2, z_room_min));
+		temp1.add_point(Pnt(x_room_min + (x / (1.5 * x_room_max)) + 0.1, 0, z_room_min- 0.2));
+		room_boxes.push_back(temp1);
+		room_colors.push_back(generate_a_valid_color(2));
+
+		temp2.add_point(Pnt(x_room_min + (x / (1.5 * x_room_max)), TABLE_HEIGT - 0.2, z_room_max + 0.2));
+		temp2.add_point(Pnt(x_room_min + (x / (1.5 * x_room_max)) + 0.1, 0, z_room_max));
+		room_boxes.push_back(temp2);
+		room_colors.push_back(generate_a_valid_color(2));
+
+		temp3.add_point(Pnt(x_room_max, TABLE_HEIGT - 0.2, z_room_min + (x / (1.5 * z_room_max))));
+		temp3.add_point(Pnt(x_room_max + 0.2, 0, z_room_min - 0.1 + (x / (1.5 * z_room_max))));
+		room_boxes.push_back(temp3);
+		room_colors.push_back(generate_a_valid_color(2));
+	}
 }
 
 /// construct boxes for environment
@@ -283,7 +331,7 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 {
 	double color_values[] =
 	{
-		1.0, 0.0, 0.5, // my red
+		0.1, 0.1, 0.2, // my blue
 		1.0, 0.7, 0.5, // my yellow
 		0.5, 0.5, 0.5, // my grey
 		0.2, 0.2, 0.2 // dark grey
@@ -1140,7 +1188,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 
 	/// In the last step the user interaction metrics are printed
 	outFile << uac.print_results_to_printable_string().str();
-	outFile << pss_count << "\n";
+	outFile << "Program_stack_counter: " << pss_count << "\n";
 	
 	outFile.close();
 }
@@ -1456,7 +1504,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 {
 	//Note: does scaling affect the ground truth? Has the ground truth to be scaled along with the scans to be used?
 
-	if(pc.get_nr_components() < 1)
+	if(pc.get_nr_components() < 1 || current_scaling_factor + scaling_difference < 0)
 		return false;
 
 	//Reverse old scaling
@@ -1473,9 +1521,10 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	//Scale rotations and translations as well
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
-		vec4 temp(pc.component_translation(x), 0);
-		temp = scaling_mat * temp;
-		pc.component_translation(x) = (temp.x(), temp.y(), temp.z());
+		//vec4 temp(pc.component_translation(x).z(), pc.component_translation(x).y(), pc.component_translation(x).z(), 1);
+		//temp = temp * current_scaling_factor;//scaling_mat;
+		pc.component_translation(x) *= (1 / current_scaling_factor);//(temp.x(), temp.y(), temp.z());
+		/*
 		mat4 rotation_mat;
 		pc.component_rotation(x).put_homogeneous_matrix(rotation_mat);
 		rotation_mat = rotation_mat	* scaling_mat;
@@ -1490,7 +1539,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 		rotation_mat_nh(2, 1) = rotation_mat(2, 1);
 		rotation_mat_nh(2, 2) = rotation_mat(2, 2);
 
-		pc.component_rotation(x).set(rotation_mat_nh);
+		pc.component_rotation(x).set(rotation_mat_nh);*/
 	}
 
 	//now apply new scaling
@@ -1506,9 +1555,11 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	//Scale rotations and translations as well
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
-		vec4 temp(pc.component_translation(x), 0);
+		pc.component_translation(x) *= current_scaling_factor;
+		/*
+		vec4 temp(pc.component_translation(x).z(), pc.component_translation(x).y(), pc.component_translation(x).z(), 1);
 		temp = scaling_mat * temp;
-		pc.component_translation(x) = (temp.x(),temp.y(),temp.z());
+		
 		mat4 rotation_mat;
 		pc.component_rotation(x).put_homogeneous_matrix(rotation_mat);
 		rotation_mat = rotation_mat	* scaling_mat;
@@ -1523,7 +1574,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 		rotation_mat_nh(2, 1) = rotation_mat(2, 1);
 		rotation_mat_nh(2, 2) = rotation_mat(2, 2);
 
-		pc.component_rotation(x).set(rotation_mat_nh);
+		pc.component_rotation(x).set(rotation_mat_nh);*/
 	}
 	return true;
 }
@@ -1652,8 +1703,8 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					}
 					}
 					else {
-						/* Scaling is now restricted to cfg data calls
-						*/if (scale(vrse.get_dy()/5))
+						// Scaling is now restricted to cfg data calls
+						if (scale(vrse.get_dy()/5))
 							printf("Scaled scans to %f \n", current_scaling_factor);
 						
 						return true;
@@ -1726,12 +1777,17 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 				{
 					if (vrth.get_value() > THROTTLE_THRESHOLD)
 					{
+						deselect_active = true;
 						if (!transformation_lock)
 						{
 							deselect_groups();
 						}
+						uac.push_back_action(user_action::SCAN_DESELECT);
 					}
-					uac.push_back_action(user_action::SCAN_DESELECT);
+					else 
+					{
+						deselect_active = false;
+					}
 					return true;
 				}
 			}

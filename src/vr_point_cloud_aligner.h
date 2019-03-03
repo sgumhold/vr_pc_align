@@ -160,7 +160,8 @@ private:
 
 	///indicates that a scan is dragged by the controller at the moment
 	bool drag_active;
-
+	///deselect this flag prevents the trigger to flood the uac with deselect events
+	bool deselect_active;
 	///calculates the translation and rotation errors after alignment
 	bool calculate_alignment_error();
 
