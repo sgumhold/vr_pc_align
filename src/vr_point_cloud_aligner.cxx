@@ -98,6 +98,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	cgv::gui::connect_gamepad_server();
 
 	drag_active = false;
+	uac = user_action_counter();
 }
 
 void vr_point_cloud_aligner::timer_event(double t, double dt)
@@ -1134,7 +1135,25 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 		}
 		outFile << ' ' << file_paths.at(i) << ' ' << pc.component_translation(i) << ' ' << pc.component_rotation(i).re() << ' ' << pc.component_rotation(i).im() << ' ' << alignmentID <<'\n';
 	}
+	/// Additionally the error metrics are calculated and stored along with the file now!
+
+
+	/// In the last step the user interaction metrics are printed
+	outFile << uac.print_results_to_printable_string().str();
+	outFile << pss_count << "\n";
+	
 	outFile.close();
+}
+
+bool vr_point_cloud_aligner::calculate_alignment_error() 
+{
+	///First step: reverse the scaling from everything
+	float reverse_scaling_difference = 1 - current_scaling_factor;
+	scale(reverse_scaling_difference);
+
+	///Next obtain the saved ground truth data:
+
+	return false;
 }
 
 point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Pnt& local_translation, const Qat& local_rotation)
@@ -1361,7 +1380,7 @@ void vr_point_cloud_aligner::display_seperation_selection()
 		rotation_steps = int(ids_of_group.size()-1);
 		uneven_comp_number = true;
 	}
-	rotation_rad = 2 * std::_Pi / rotation_steps;
+	rotation_rad = float(2 * std::_Pi / rotation_steps);
 
 	float needed_lentgth = float(1.1*max_bb_diagonal / abs(2 * sin(rotation_rad / 2)));
 	
@@ -1441,6 +1460,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 		return false;
 
 	//Reverse old scaling
+
 	mat4 scaling_mat;
 	scaling_mat.identity();
 
@@ -1450,6 +1470,29 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	scaling_mat(3, 3) = 1;
 	pc.transform(scaling_mat);
 	
+	//Scale rotations and translations as well
+	for (int x = 0; x < int(pc.get_nr_components()); ++x)
+	{
+		vec4 temp(pc.component_translation(x), 0);
+		temp = scaling_mat * temp;
+		pc.component_translation(x) = (temp.x(), temp.y(), temp.z());
+		mat4 rotation_mat;
+		pc.component_rotation(x).put_homogeneous_matrix(rotation_mat);
+		rotation_mat = rotation_mat	* scaling_mat;
+		mat3 rotation_mat_nh;
+		rotation_mat_nh(0, 0) = rotation_mat(0, 0);
+		rotation_mat_nh(0, 1) = rotation_mat(0, 1);
+		rotation_mat_nh(0, 2) = rotation_mat(0, 2);
+		rotation_mat_nh(1, 0) = rotation_mat(1, 0);
+		rotation_mat_nh(1, 1) = rotation_mat(1, 1);
+		rotation_mat_nh(1, 2) = rotation_mat(1, 2);
+		rotation_mat_nh(2, 0) = rotation_mat(2, 0);
+		rotation_mat_nh(2, 1) = rotation_mat(2, 1);
+		rotation_mat_nh(2, 2) = rotation_mat(2, 2);
+
+		pc.component_rotation(x).set(rotation_mat_nh);
+	}
+
 	//now apply new scaling
 	current_scaling_factor += scaling_difference;
 	scaling_mat.identity();
@@ -1459,8 +1502,29 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	scaling_mat(2, 2) = current_scaling_factor;
 	scaling_mat(3, 3) = 1;
 	pc.transform(scaling_mat);
-	//Scalierung mit transform -> Scalierungsfaktor speichern!
-	//UpdateBoxes!
+
+	//Scale rotations and translations as well
+	for (int x = 0; x < int(pc.get_nr_components()); ++x)
+	{
+		vec4 temp(pc.component_translation(x), 0);
+		temp = scaling_mat * temp;
+		pc.component_translation(x) = (temp.x(),temp.y(),temp.z());
+		mat4 rotation_mat;
+		pc.component_rotation(x).put_homogeneous_matrix(rotation_mat);
+		rotation_mat = rotation_mat	* scaling_mat;
+		mat3 rotation_mat_nh;
+		rotation_mat_nh(0, 0) = rotation_mat(0, 0);
+		rotation_mat_nh(0, 1) = rotation_mat(0, 1);
+		rotation_mat_nh(0, 2) = rotation_mat(0, 2);
+		rotation_mat_nh(1, 0) = rotation_mat(1, 0);
+		rotation_mat_nh(1, 1) = rotation_mat(1, 1);
+		rotation_mat_nh(1, 2) = rotation_mat(1, 2);
+		rotation_mat_nh(2, 0) = rotation_mat(2, 0);
+		rotation_mat_nh(2, 1) = rotation_mat(2, 1);
+		rotation_mat_nh(2, 2) = rotation_mat(2, 2);
+
+		pc.component_rotation(x).set(rotation_mat_nh);
+	}
 	return true;
 }
 
@@ -1487,6 +1551,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 								reset_componets_transformations();
 								transformation_lock = false;
 							}
+							uac.push_back_action(user_action::RESET);
 							return true;
 
 						//left menu -> seperation selection
@@ -1499,6 +1564,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 								sep_thread.detach();
 								post_redraw();
 							}
+							uac.push_back_action(user_action::GROUP_SEPERATE_DISPLAY);
 							return true;
 
 						//left touchpad up press -> position above table
@@ -1507,6 +1573,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							{
 								reposition_above_table();
 							}
+							uac.push_back_action(user_action::POSITION_ABOVE);
 							return true;
 
 						//left touchpad left press -> abort action or strg + z
@@ -1524,12 +1591,15 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							}
 							else
 								restore_state(pss_count - 2);
+
+							uac.push_back_action(user_action::REVERSE);
 							return true;
 
 						//left touchpad right press -> restore latest action (strg + y)
 						case vr::VR_LEFT_STICK_RIGHT:
 							if(!transformation_lock)
 								restore_state(pss_count);
+							uac.push_back_action(user_action::RESTORE);
 							return true;
 
 						// right touchpad down -> ICP (deprecated)
@@ -1547,8 +1617,10 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 
 						// right menu button -> merge 2 groups
 						case vr::VR_RIGHT_MENU:
-							if (picked_group->get_ID() != -1 && previous_picked_group->get_ID() != -1 && picked_group->get_ID() != previous_picked_group->get_ID()) {
+							if (picked_group->get_ID() != -1 && previous_picked_group->get_ID() != -1 && picked_group->get_ID() != previous_picked_group->get_ID()) 
+							{
 								transformation_lock = true;
+								uac.push_back_action(user_action::UNITE);
 								unite(true);
 								//pending_unite = false;
 							}
@@ -1581,9 +1653,9 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					}
 					else {
 						/* Scaling is now restricted to cfg data calls
-						if (scale(vrse.get_dy()/5))
+						*/if (scale(vrse.get_dy()/5))
 							printf("Scaled scans to %f \n", current_scaling_factor);
-						*/
+						
 						return true;
 					}
 				}
@@ -1625,6 +1697,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 						else if (seperation_in_process)
 						{
 							try_component_pick();
+							uac.push_back_action(user_action::SCAN_PICK);
 							return true;
 						}
 						else if (try_group_pick())
@@ -1632,15 +1705,19 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							//Dragging blocks the picker so that the picker is only called once
 							drag_active = true;
 							calculate_local_pose(vrth.get_state().controller[MAIN_CONTROLLER].pose);
+							uac.push_back_action(user_action::SCAN_PICK);
 							return true;
 						}
 					}
 					///This means the throttle is now below the dragging threshold -> Dragging ends and the state should be pushed back if the user dragged something
 					else 
 					{
-						if(drag_active)
+						if (drag_active)
+						{
 							push_back_state();
-						drag_active = false;
+							uac.push_back_action(user_action::SCAN_DRAG);
+						}
+							drag_active = false;
 						return true;
 					}
 				}
@@ -1654,6 +1731,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							deselect_groups();
 						}
 					}
+					uac.push_back_action(user_action::SCAN_DESELECT);
 					return true;
 				}
 			}

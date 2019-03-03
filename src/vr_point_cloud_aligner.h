@@ -6,6 +6,7 @@
 
 #include <cgv/gui/file_dialog.h>
 #include "interval.h"
+#include "user_action_counter.h"
 #include "constructed_set.h"
 #include "program_state.h"
 #include "../sparseicp/ICP.h"
@@ -47,12 +48,15 @@ protected:
 	vr_view_interactor* vr_view_ptr;
 
 private:
+
 	std::vector<Box> room_boxes;
 	std::vector<Clr> sample_box_colors;
 	std::vector<Clr> room_colors;
 	std::vector<std::string> file_paths;
 	std::vector<program_state> program_state_stack;
 	int pss_count;
+
+	user_action_counter uac;
 
 	cgv::render::surface_render_style box_render_style;
 	RGBA oldColor;
@@ -157,6 +161,9 @@ private:
 	///indicates that a scan is dragged by the controller at the moment
 	bool drag_active;
 
+	///calculates the translation and rotation errors after alignment
+	bool calculate_alignment_error();
+
 	///Saves the draging distance for an optimal point rotation
 	float current_picked_distance;
 	///Saves the local pose of a group/component for dragging
@@ -191,7 +198,6 @@ protected:
 public:
 	/// construct viewer with default configuration
 	vr_point_cloud_aligner();
-
 
 	void timer_event(double t, double dt);
 
