@@ -1197,11 +1197,22 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 
 bool vr_point_cloud_aligner::calculate_alignment_error() 
 {
-	///First step: reverse the scaling from everything
-	float reverse_scaling_difference = 1 - current_scaling_factor;
-	scale(reverse_scaling_difference);
+	//float reverse_scaling_difference = 1 - current_scaling_factor;
+	//scale(reverse_scaling_difference);
 
-	///Next obtain the saved ground truth data:
+	//First scale alignment data
+
+	//Then for each component: use this component to tranlate and rotate them to the exact same point as the ground truth data.
+	for (int x = 0; x < int(pc.get_nr_components()); ++x)
+	{
+		//vec3 diff_to_gt = 
+	}
+	//Calculate the translation and rotation errors for all components relative to the chosen one
+
+	//Build the average over all calculated values
+	
+
+	//Next obtain the saved ground truth data:
 
 	return false;
 }

@@ -1,0 +1,28 @@
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_000.pct 0.415195 1.35793 -0.511076 0.266573 -0.0207527 0.962596 -0.0437913 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_030.pct 0.097888 1.31778 -0.612417 0.0603647 -0.0218107 0.995769 -0.0657598 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_060.pct -0.418379 1.30203 -0.471358 -0.279275 -0.00647548 0.957621 -0.0701869 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_090.pct -0.702106 1.41503 -0.191717 -0.495706 0.0970923 0.859966 -0.0728489 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_120.pct 1.43588 0.110566 1.76672 -0 2.72949e+18 3.58961e+17 4.06958e+18 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_150.pct -9.05563e+30 2.19012e+31 6.0728e+31 -0 -0 1.80157e+14 -9.71536e+12 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_180.pct -0.537429 1.59638 0.811403 0.93941 -0.111698 -0.322907 0.027617 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_210.pct -0.224922 1.6105 0.965298 0.986334 -0.110572 -0.118538 0.029468 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_240.pct 0.386563 1.54162 0.886628 0.966997 -0.0875543 0.239101 -0.00910304 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_270.pct 0.684736 1.46948 0.600112 0.874108 -0.0621502 0.480002 -0.0408711 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_300.pct 0.807976 1.41073 0.192834 0.71701 -0.0370455 0.695012 -0.0385143 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_330.pct 0.758845 1.38239 -0.124358 0.560028 -0.0472694 0.825589 -0.0503711 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_bottom.pct 0.165239 0.689749 0.259405 0.290893 0.0469281 0.678842 -0.672572 9
+ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_top.pct -0.0847296 2.19627 0.093076 0.173878 -0.24219 0.717425 0.629613 9
+Total actions: 460
+SCAN_DRAG: 160
+SCAN_PICK: 239
+SCAN_DESELECT: 30
+GROUP_SEPERATE_DISPLAY: 2
+GROUP_SEPERATE_CONFIRM: 1
+REVERSE: 8
+RESTORE: 0
+POSITION_ABOVE: 0
+RESET: 4
+UNITE: 16
+Program_stack_counter: 243
+Used Scaling Factor:0.07
+Time 12:34
