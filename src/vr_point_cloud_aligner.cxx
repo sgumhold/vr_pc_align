@@ -1642,12 +1642,13 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 
 						//left touchpad left press -> abort action or strg + z
 						case vr::VR_LEFT_STICK_LEFT:
-							if (pending_unite) {
-								unite(false);
-								pending_unite = false;
-								transformation_lock = false;
-							}
-							else if (seperation_in_process)
+							//if (pending_unite) 
+							//{
+							//	unite(false);
+							//	pending_unite = false;
+							//	transformation_lock = false;
+							//}
+							if (seperation_in_process)
 							{
 								seperation_in_process = false;
 								transformation_lock = false;
@@ -2019,7 +2020,7 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 		for (int i = 0; i < nr; i++)
 		{
 			float x = float(x_room_max * 2 / nr);
-			pc.component_translation(i).set(x_room_min + 0.2, Crd(1.8),Crd(i * x) + z_room_min);
+			pc.component_translation(i).set(x_room_min + 0.2, Crd(1.8),Crd(i * x) + z_room_min + 1);
 			pc.component_rotation(i) = defaultFacing;
 		}
 	}
