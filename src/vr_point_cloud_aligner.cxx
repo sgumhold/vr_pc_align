@@ -1162,6 +1162,8 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 	pss_count = 0;
 	//deleting the stack resets some variables too!
 	
+	scale(-0.93);
+	reset_componets_transformations();
 	push_back_state();
 	post_redraw();
 }
@@ -1189,7 +1191,7 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 	/// In the last step the user interaction metrics are printed
 	outFile << uac.print_results_to_printable_string().str();
 	outFile << "Program_stack_counter: " << pss_count << "\n";
-	
+	outFile << "Used Scaling Factor:" << current_scaling_factor << "\n";
 	outFile.close();
 }
 
@@ -1318,7 +1320,7 @@ void vr_point_cloud_aligner::seperate_component()
 		constructed_set newly_seprated_single_component_set(newly_vec, lowest_available_ID);
 		sets.push_back(newly_seprated_single_component_set);
 		///Push it up to see it better and dont start before old animation is finished
-		cgv::gui::animate_with_linear_blend(pc.component_translation(picked_component), pc.component_translation(picked_component) + Dir(0,0,1), ANIMATION_DURATION, ANIMATION_DURATION, false);
+		cgv::gui::animate_with_linear_blend(pc.component_translation(picked_component), pc.component_translation(picked_component) + Dir(0,0.5,0), ANIMATION_DURATION, ANIMATION_DURATION, false);
 		//Autoselect new component mostly code from the picking algorithm
 		printf("Picked a new created group\n");
 		//reset colors of older group
@@ -1605,7 +1607,7 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 							uac.push_back_action(user_action::RESET);
 							return true;
 
-						//left menu -> seperation selection
+						//left menu -> seperation selection and confirmation
 						case vr::VR_LEFT_MENU:
 							if (!seperation_in_process && picked_group->get_ID() != -1 && picked_group->get_component_IDs().size() > 1)
 							{
@@ -1613,9 +1615,20 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 								transformation_lock = true;
 								std::thread sep_thread(&vr_point_cloud_aligner::display_seperation_selection, this);
 								sep_thread.detach();
+								uac.push_back_action(user_action::GROUP_SEPERATE_DISPLAY);
 								post_redraw();
 							}
-							uac.push_back_action(user_action::GROUP_SEPERATE_DISPLAY);
+							else if (seperation_in_process && picked_component_valid) 
+							{
+								seperate_component();
+								seperation_in_process = false;
+								transformation_lock = false;
+								uac.push_back_action(user_action::GROUP_SEPERATE_CONFIRM);
+							}
+							else 
+							{
+								uac.push_back_action(user_action::GROUP_SEPERATE_DISPLAY);
+							}
 							return true;
 
 						//left touchpad up press -> position above table
@@ -1673,9 +1686,8 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 								transformation_lock = true;
 								uac.push_back_action(user_action::UNITE);
 								unite(true);
-								//pending_unite = false;
+								transformation_lock = false;
 							}
-							transformation_lock = false;
 							return true;
 					}
 				}
@@ -1704,9 +1716,9 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					}
 					else {
 						// Scaling is now restricted to cfg data calls
-						if (scale(vrse.get_dy()/5))
+						/*if (scale(vrse.get_dy()/5))
 							printf("Scaled scans to %f \n", current_scaling_factor);
-						
+						*/
 						return true;
 					}
 				}
@@ -1734,24 +1746,23 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 			//The throttle events, mapped to picking (right) and deselection (left)
 			case cgv::gui::EID_THROTTLE:
 			{
-				if (transformation_lock)
-					return true;
 				cgv::gui::vr_throttle_event& vrth = static_cast<cgv::gui::vr_throttle_event&>(e);
 				if (vrth.get_controller_index() == MAIN_CONTROLLER)
 				{
 					if (vrth.get_value() > THROTTLE_THRESHOLD)
 					{
-						if (drag_active)
-						{
-							return true;
-						}
-						else if (seperation_in_process)
+						//due to the fact that dragging is not possible during seperations this has to be checked first
+						if (seperation_in_process)
 						{
 							try_component_pick();
 							uac.push_back_action(user_action::SCAN_PICK);
 							return true;
 						}
-						else if (try_group_pick())
+						else if (drag_active)
+						{
+							return true;
+						}
+						else if (try_group_pick() && !transformation_lock)
 						{
 							//Dragging blocks the picker so that the picker is only called once
 							drag_active = true;
@@ -1763,12 +1774,12 @@ bool vr_point_cloud_aligner::handle(cgv::gui::event& e)
 					///This means the throttle is now below the dragging threshold -> Dragging ends and the state should be pushed back if the user dragged something
 					else 
 					{
-						if (drag_active)
+						if (drag_active && !transformation_lock)
 						{
 							push_back_state();
 							uac.push_back_action(user_action::SCAN_DRAG);
 						}
-							drag_active = false;
+						drag_active = false;
 						return true;
 					}
 				}
@@ -2007,8 +2018,8 @@ void vr_point_cloud_aligner::reset_componets_transformations() {
 	{
 		for (int i = 0; i < nr; i++)
 		{
-			float x = float(x_room_max / nr);
-			pc.component_translation(i).set(x_room_min + 0.2, Crd(1.8),Crd(i * x));
+			float x = float(x_room_max * 2 / nr);
+			pc.component_translation(i).set(x_room_min + 0.2, Crd(1.8),Crd(i * x) + z_room_min);
 			pc.component_rotation(i) = defaultFacing;
 		}
 	}
