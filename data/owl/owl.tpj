@@ -10,5 +10,5 @@ D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_240.pct -9.
 D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_270.pct -11.5 2.11252e-15 0 0.5 0.5 -0.5 -0.5 1 1
 D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_300.pct -9.95929 -5.75 0 0.612372 0.612372 -0.353553 -0.353553 1
 D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_330.pct -5.75 -9.95929 0 0.683013 0.683013 -0.183013 -0.183013 1
-D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_bottom.pct -0.000000000000000704171 -11.5 0 1 0 0 0 2
-D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_top.pct -0.000000000000000704171 11.5 0 1 0 0 0 3
+D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_bottom.pct -0.000000000000000704171 0 -11.5 0 1 0 0 1
+D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_top.pct -0.000000000000000704171 0 11.5 1 0 0 0 1

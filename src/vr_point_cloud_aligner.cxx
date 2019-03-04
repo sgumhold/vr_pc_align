@@ -1992,7 +1992,6 @@ void vr_point_cloud_aligner::calculate_local_pose(const float* controller_pose)
 	{
 		mat3 rot;
 		pc.component_rotation(ids.at(x)).put_matrix(rot);
-		rot.transpose();
 		mat4 temp;
 		temp.set_col(0, vec4(rot.col(0), 0));
 		temp.set_col(1, vec4(rot.col(1), 0));
@@ -2067,7 +2066,7 @@ void vr_point_cloud_aligner::drag_scan(cgv::math::fmat<float,3,3> rotation, Dir 
 		for (int i = 0; i < 3; ++i)
 			new_rot.set_col(i, reinterpret_cast<const vec3&>(temp.col(i)));
 		vec3 new_trans = reinterpret_cast<const vec3&>(temp.col(3));
-		pc.component_rotation(picked_ids[x]).set(transpose(new_rot));
+		pc.component_rotation(picked_ids[x]).set(new_rot);
 		pc.component_translation(picked_ids[x]) = new_trans;
 	}
 }
