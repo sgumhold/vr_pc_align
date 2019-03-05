@@ -97,6 +97,9 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	connect(cgv::gui::ref_vr_server().on_device_change, this, &vr_point_cloud_aligner::on_device_change);
 	cgv::gui::connect_gamepad_server();
 
+	//Maybe make this a cfg variable. For now this works
+	ground_truth_path = "D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/owl.tpj";
+
 	drag_active = false;
 	deselect_active = false;
 	uac = user_action_counter();
@@ -1161,9 +1164,9 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 	program_state_stack.erase(program_state_stack.begin(), program_state_stack.end());
 	pss_count = 0;
 	//deleting the stack resets some variables too!
-	
+	//disable during calcs
 	scale(-0.93);
-	reset_componets_transformations();
+	//reset_componets_transformations();
 	push_back_state();
 	post_redraw();
 }
@@ -1192,29 +1195,139 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 	outFile << uac.print_results_to_printable_string().str();
 	outFile << "Program_stack_counter: " << pss_count << "\n";
 	outFile << "Used Scaling Factor:" << current_scaling_factor << "\n";
+	outFile << calculate_alignment_error().str() << "\n";
 	outFile.close();
 }
 
-bool vr_point_cloud_aligner::calculate_alignment_error() 
+std::stringstream vr_point_cloud_aligner::calculate_alignment_error() 
 {
-	//float reverse_scaling_difference = 1 - current_scaling_factor;
-	//scale(reverse_scaling_difference);
+	//obtain ground truth
+	std::vector<cgv::math::quaternion<float>> gt_rot;
+	std::vector<Dir> gt_transl;
 
-	//First scale alignment data
+	///using filestream to read
+	std::ifstream inFile;
+	inFile.open(ground_truth_path);
+	if (!inFile) 
+	{
+		printf("Unable to open file");
+	}
+	std::string line;
+	while (std::getline(inFile, line))
+	{
+		std::istringstream iss(line);
+		std::string fileName;
+		float x, y, z;
+		float re, xi, yi, zi;
+		float to_dump;
+		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> to_dump))
+		{
+			//If reading fails, continue next
+			continue;
+		}
+		if (fileName.empty())
+		{
+			continue;
+		}
+		cgv::math::quaternion<float> tempr(re,vec3(xi, yi, zi));
+		Dir tempt(x, y, z);
+		
+		//Scaling that was used during the tests, has to be applied to all translations
+		tempt *= 0.07;
 
-	//Then for each component: use this component to tranlate and rotate them to the exact same point as the ground truth data.
+		gt_transl.push_back(tempt);
+		gt_rot.push_back(tempr);
+	}
+
+	//build up stringstream
+	std::stringstream to_return;
+	std::vector<float> translation_error_all;
+	std::vector<float> rotation_error_all;
+
+	std::vector<std::string> componentwise_average_error_output;
+	//Then for each component: use this component and calculate translation and rotation error between them. Print them to file
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
-		//vec3 diff_to_gt = 
+		std::vector<float> translation_error_this_component;
+		std::vector<float> rotation_error_this_component;
+		for (int y = 0; y < int(pc.get_nr_components()); ++y)
+		{
+			//This would be zero and not usefull
+			if (x == y)
+				continue;
+			
+			//Translation difference equals the difference vector between the two origins
+			Dir diff = pc.component_translation(y) - pc.component_translation(x);
+			
+			//Translation differnce ground truth is the same
+			Dir gt_diff = gt_transl[y] - gt_transl[x];
+
+			//The error is calculated the same way. The length is then the error metric
+			Dir error =  diff - gt_diff;
+
+			translation_error_this_component.push_back(error.length());
+			translation_error_all.push_back(error.length());			
+			
+			//Rotation difference equals q' = q1^-1 * q2.
+
+			cgv::math::quaternion<float> q1 = pc.component_rotation(x);
+			cgv::math::quaternion<float> q2 = pc.component_rotation(y);
+			cgv::math::quaternion<float> q_abl = q1.conj() * q2;
+			
+			//same for ground truth
+			cgv::math::quaternion<float> q1_gt = gt_rot[x];
+			cgv::math::quaternion<float> q2_gt = gt_rot[y];
+			cgv::math::quaternion<float> q_abl_gt = q1_gt.conj() * q2_gt;
+			
+			//same for error
+			cgv::math::quaternion<float> q_error = q_abl_gt.conj() * q_abl;
+
+			//Then form q' to axis angle representation and take the angle as metric. See https://www.gamedev.net/forums/topic/423462-rotation-difference-between-two-quaternions/
+			//As the angle of q_abl can be easily derived by acos function, see  http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
+			float error_angle = 2 * acos(q_error.w()); //Rad is used
+
+			rotation_error_all.push_back(error_angle);
+			rotation_error_this_component.push_back(error_angle);
+
+			//to_return << "Error translation from: " << file_paths[x] << " to: " << file_paths[y] << " equals t =" << error << " length: " << error.length() << " Error rotation angle:" << error_angle << "\n";
+
+		}
+		float error_average=0;
+		float error_average_angle=0;
+		for (int z = 0; z < int(translation_error_this_component.size()); ++z)
+		{
+			error_average += translation_error_this_component[z];
+			error_average_angle += rotation_error_this_component[z];
+		}
+		error_average /= translation_error_this_component.size();
+		error_average_angle /= rotation_error_this_component.size();
+
+		std::stringstream ss;
+		ss << "Averaged alignment Error (squared translation): " << error_average << " angle: " << error_average_angle << "\n";
+		//Safe back for later
+		componentwise_average_error_output.push_back(ss.str());
 	}
-	//Calculate the translation and rotation errors for all components relative to the chosen one
 
-	//Build the average over all calculated values
-	
+	//Now fuse component wise results after newline
+	to_return << "\n";
+	for (int i = 0; i < int(componentwise_average_error_output.size()); ++i)
+	{
+		to_return << (componentwise_average_error_output[i]);
+	}
 
-	//Next obtain the saved ground truth data:
+	float total_error_transl = 0;
+	float total_error_rot = 0;
+	for (int i = 0; i < int(translation_error_all.size()); ++i)
+	{
+		total_error_transl += translation_error_all[i];
+		total_error_rot += rotation_error_all[i];
+	}
+	total_error_transl /= translation_error_all.size();
+	total_error_rot /= translation_error_all.size();
 
-	return false;
+	to_return << "Total translation Error: " << total_error_transl << "\n" << "Total rotation error: " << total_error_rot << "\n";
+
+	return to_return;
 }
 
 point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Pnt& local_translation, const Qat& local_rotation)
@@ -1536,7 +1649,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	{
 		//vec4 temp(pc.component_translation(x).z(), pc.component_translation(x).y(), pc.component_translation(x).z(), 1);
 		//temp = temp * current_scaling_factor;//scaling_mat;
-		pc.component_translation(x) *= (1 / current_scaling_factor);//(temp.x(), temp.y(), temp.z());
+		//pc.component_translation(x) *= (1 / current_scaling_factor);//(temp.x(), temp.y(), temp.z());
 		/*
 		mat4 rotation_mat;
 		pc.component_rotation(x).put_homogeneous_matrix(rotation_mat);
@@ -1568,7 +1681,7 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	//Scale rotations and translations as well
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
-		pc.component_translation(x) *= current_scaling_factor;
+		//pc.component_translation(x) *= current_scaling_factor;
 		/*
 		vec4 temp(pc.component_translation(x).z(), pc.component_translation(x).y(), pc.component_translation(x).z(), 1);
 		temp = scaling_mat * temp;

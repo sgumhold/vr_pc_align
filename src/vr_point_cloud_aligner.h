@@ -25,7 +25,8 @@
 class CGV_API vr_point_cloud_aligner : public point_cloud_interactable
 {
 protected:
-
+	///GroundTruth datapath
+	std::string ground_truth_path;
 	///ProjectFilepath
 	std::string project_file;
 	///The default facing where scans should look at
@@ -163,7 +164,7 @@ private:
 	///deselect this flag prevents the trigger to flood the uac with deselect events
 	bool deselect_active;
 	///calculates the translation and rotation errors after alignment
-	bool calculate_alignment_error();
+	std::stringstream calculate_alignment_error();
 
 	///Saves the draging distance for an optimal point rotation
 	float current_picked_distance;
