@@ -1237,6 +1237,8 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 
 		gt_transl.push_back(tempt);
 		gt_rot.push_back(tempr);
+		std::cout << fileName;
+		printf("\n");
 	}
 
 	//build up stringstream
@@ -1245,14 +1247,14 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 	std::vector<float> rotation_error_all;
 
 	std::vector<std::string> componentwise_average_error_output;
-	//Then for each component: use this component and calculate translation and rotation error between them. Print them to file
+	//Then for each component: use this component and calculate translation and rotation difference between them. do the same with the ground truth data and calculate the error between them Print them to file
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
 		std::vector<float> translation_error_this_component;
 		std::vector<float> rotation_error_this_component;
 		for (int y = 0; y < int(pc.get_nr_components()); ++y)
 		{
-			//This would be zero and not usefull
+			//This would be zero and not useful
 			if (x == y)
 				continue;
 			
@@ -1284,12 +1286,12 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 
 			//Then form q' to axis angle representation and take the angle as metric. See https://www.gamedev.net/forums/topic/423462-rotation-difference-between-two-quaternions/
 			//As the angle of q_abl can be easily derived by acos function, see  http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
-			float error_angle = 2 * acos(q_error.w()); //Rad is used
+			float error_angle = 2 * acos(q_error.w()); //rad is used
 
 			rotation_error_all.push_back(error_angle);
 			rotation_error_this_component.push_back(error_angle);
 
-			//to_return << "Error translation from: " << file_paths[x] << " to: " << file_paths[y] << " equals t =" << error << " length: " << error.length() << " Error rotation angle:" << error_angle << "\n";
+			to_return << "Error translation from: " << file_paths[x] << " to: " << file_paths[y] << " equals t =" << error << " length: " << error.length() << " Error rotation angle:" << error_angle << "\n";
 
 		}
 		float error_average=0;
