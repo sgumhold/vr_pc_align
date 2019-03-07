@@ -98,7 +98,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	cgv::gui::connect_gamepad_server();
 
 	//Maybe make this a cfg variable. For now this works
-	ground_truth_path = "D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/owl.tpj";
+	ground_truth_path = "C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/owl.tpj";
 
 	drag_active = false;
 	deselect_active = false;
@@ -1220,11 +1220,13 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 		float x, y, z;
 		float re, xi, yi, zi;
 		float to_dump;
+		//Uses the same format as standard tpj. Group number is not needed, can go to dump variable
 		if (!(iss >> fileName >> x >> y >> z >> re >> xi >> yi >> zi >> to_dump))
 		{
 			//If reading fails, continue next
 			continue;
 		}
+		//This ensures other information stored in the tpj file are ignored
 		if (fileName.empty())
 		{
 			continue;
@@ -1247,7 +1249,7 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 	std::vector<float> rotation_error_all;
 
 	std::vector<std::string> componentwise_average_error_output;
-	//Then for each component: use this component and calculate translation and rotation difference between them. do the same with the ground truth data and calculate the error between them Print them to file
+	//Then for each component: use this component and calculate translation and rotation difference between them. do the same with the ground truth data and calculate the error between both results, then Print them to file
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
 		std::vector<float> translation_error_this_component;
@@ -1257,18 +1259,6 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 			//This would be zero and not useful
 			if (x == y)
 				continue;
-			
-			//Translation difference equals the difference vector between the two origins
-			Dir diff = pc.component_translation(y) - pc.component_translation(x);
-			
-			//Translation differnce ground truth is the same
-			Dir gt_diff = gt_transl[y] - gt_transl[x];
-
-			//The error is calculated the same way. The length is then the error metric
-			Dir error =  diff - gt_diff;
-
-			translation_error_this_component.push_back(error.length());
-			translation_error_all.push_back(error.length());			
 			
 			//Rotation difference equals q' = q1^-1 * q2.
 
@@ -1287,11 +1277,35 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 			//Then form q' to axis angle representation and take the angle as metric. See https://www.gamedev.net/forums/topic/423462-rotation-difference-between-two-quaternions/
 			//As the angle of q_abl can be easily derived by acos function, see  http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
 			float error_angle = 2 * acos(q_error.w()); //rad is used
-
+			
+			//The rotation around the axis is not unambigous, therefore if the other direction is used reverse this by 2 * PI - error-angle.
+			if (error_angle > std::_Pi)
+			{
+				error_angle = (2 * std::_Pi) - error_angle;
+			}
+			//If the difference is nearly 0 the acos becomes inf(nan), chatch this case and put 0 as solution
+			if (!std::isfinite(error_angle) || std::isnan(error_angle))
+			{
+				error_angle = 0;
+			}
 			rotation_error_all.push_back(error_angle);
 			rotation_error_this_component.push_back(error_angle);
+			
+			//Translation difference equals the difference vector between the two origins, rotations influence need to be eliminated first		
 
-			to_return << "Error translation from: " << file_paths[x] << " to: " << file_paths[y] << " equals t =" << error << " length: " << error.length() << " Error rotation angle:" << error_angle << "\n";
+			Dir diff = pc.component_translation(y) - pc.component_translation(x);
+			q2.inverse_rotate(diff);
+			
+			Dir gt_diff = gt_transl[y] - gt_transl[x];
+			q2_gt.inverse_rotate(gt_diff);
+			
+			Dir error = diff - gt_diff;
+
+			translation_error_this_component.push_back(error.length());
+			translation_error_all.push_back(error.length());
+
+
+			to_return << "Error translation from: " << file_paths[x] << " to: " << file_paths[y] << " vec_gt: " << gt_diff << "vec_align: " << diff << " length: " << error.length() << " Error rotation angle:" << error_angle << "\n";
 
 		}
 		float error_average=0;
@@ -1305,7 +1319,7 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 		error_average_angle /= rotation_error_this_component.size();
 
 		std::stringstream ss;
-		ss << "Averaged alignment Error (squared translation): " << error_average << " angle: " << error_average_angle << "\n";
+		ss << "Averaged alignment Error translationS: " << error_average << " angle: " << error_average_angle << "\n";
 		//Safe back for later
 		componentwise_average_error_output.push_back(ss.str());
 	}
