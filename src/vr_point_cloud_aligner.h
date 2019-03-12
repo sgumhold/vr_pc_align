@@ -36,6 +36,8 @@ protected:
 
 	///flag for the icp is in process
 	bool icp_executing;
+	///flag wether scaling on translation is wanted when loading a function. Should be set to false by default unless you load a ground truth set
+	bool translation_scale_active;
 
 	// keep deadzone and precision vector for left controller
 	cgv::gui::vr_server::vec_flt_flt left_deadzone_and_precision;
@@ -97,7 +99,7 @@ private:
 	/// animates a group to split
 	void display_seperation_selection();
 	/// scales all scans by the scaling_factor
-	bool scale(float scaling_factor);
+	bool scale(float scaling_factor, bool scale_translations_too);
 	///This flag shows if the subsampling variables are changed
 	bool subsample_changed;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> vertices_source;

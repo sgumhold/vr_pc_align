@@ -96,10 +96,7 @@ vr_point_cloud_aligner::vr_point_cloud_aligner()
 	last_kit_handle = 0;
 	connect(cgv::gui::ref_vr_server().on_device_change, this, &vr_point_cloud_aligner::on_device_change);
 	cgv::gui::connect_gamepad_server();
-
-	//Maybe make this a cfg variable. For now this works
-	ground_truth_path = "C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/owl.tpj";
-
+	
 	drag_active = false;
 	deselect_active = false;
 	uac = user_action_counter();
@@ -250,7 +247,10 @@ std::string vr_point_cloud_aligner::get_type_name() const
 bool vr_point_cloud_aligner::self_reflect(cgv::reflect::reflection_handler& rh)
 {
 	return
+		rh.reflect_member("ground_truth_path", ground_truth_path) &&
 		rh.reflect_member("project_file", project_file) &&
+		rh.reflect_member("current_scaling_factor",current_scaling_factor) &&
+		rh.reflect_member("scale_translations", translation_scale_active) &&
 		point_cloud_interactable::self_reflect(rh);
 }
 void vr_point_cloud_aligner::stream_help(std::ostream& os)
@@ -351,6 +351,7 @@ point_cloud_types::Clr vr_point_cloud_aligner::generate_a_valid_color(int color)
 	);
 }
 
+///Deprecated
 void vr_point_cloud_aligner::animate_pending_unite_blink()
 {
 	std::vector<int> tempIds = picked_group->get_component_IDs();
@@ -372,6 +373,7 @@ void vr_point_cloud_aligner::animate_pending_unite_blink()
 	post_redraw();
 }
 
+///If 2 valid groups are picked, this fucntion unites them
 void vr_point_cloud_aligner::unite(bool unite) 
 {
 	int uniting_Pos = -1;
@@ -418,6 +420,7 @@ void vr_point_cloud_aligner::unite(bool unite)
 	}
 }
 
+///Pushes the current program state to the program state stack
 void vr_point_cloud_aligner::push_back_state()
 {
 	if (pss_count < int(program_state_stack.size()))
@@ -439,6 +442,7 @@ void vr_point_cloud_aligner::push_back_state()
 	pss_count++;
 }
 
+///Restores a program state from the program state stack
 void vr_point_cloud_aligner::restore_state(int i)
 {
 	if(i > int(program_state_stack.size())-1)
@@ -458,6 +462,7 @@ void vr_point_cloud_aligner::restore_state(int i)
 	post_redraw();
 }
 
+///Subsamples a given set of points if the subsamplingrange is valid
 void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source, 
 										Eigen::Matrix<double, 3, Eigen::Dynamic> &vertices_source_copy, 
 											Eigen::Matrix<double, 3,Eigen::Dynamic> &vertices_target, int subsampling_range)
@@ -560,6 +565,7 @@ void vr_point_cloud_aligner::subsample(Eigen::Matrix<double, 3, Eigen::Dynamic> 
 	printf("Subsampled source set!");
 }
 
+///Helper function for the repositon above table function. Finds the deepest (lowest y coordinate) bounding box and returns the value
 float vr_point_cloud_aligner::find_deepest_BB_point()
 {
 	std::vector<Pnt> transformed_Pnts;
@@ -589,6 +595,7 @@ float vr_point_cloud_aligner::find_deepest_BB_point()
 	return lowest_y;
 }
 
+///Repositions the scans above the table, at the centre of the room
 void vr_point_cloud_aligner::reposition_above_table()
 {
 	Pnt average_middle(0, 0, 0);
@@ -626,8 +633,10 @@ void vr_point_cloud_aligner::reposition_above_table()
 	push_back_state();
 }
 
+///Deprecated
 void vr_point_cloud_aligner::start_ICP()
 {
+	///Deprecated
 	//int nr_of_all_points_source = 0;
 	//std::vector<int> Ids_source = picked_group->get_component_IDs();
 	//for (int i = 0; i < int(Ids_source.size()); ++i)
@@ -744,6 +753,7 @@ bool vr_point_cloud_aligner::ensure_view_pointer()
 	return false;
 }
 
+///This function picks only one component at a time. Should only be called during separation process
 void vr_point_cloud_aligner::try_component_pick()
 {
 	if (!seperation_in_process) 
@@ -799,6 +809,7 @@ void vr_point_cloud_aligner::try_component_pick()
 	}
 }
 
+///Restores all colors and resets the picked group variables to default (empty group)
 void vr_point_cloud_aligner::deselect_groups()
 {
 	printf("deselected groups\n");
@@ -816,7 +827,7 @@ void vr_point_cloud_aligner::deselect_groups()
 	previous_picked_group = &global_placeholder_set;
 }
 
-
+///This function looks for possible intersected components that are in a group. If any of the component was picked, the whole group is selected
 bool vr_point_cloud_aligner::try_group_pick()
 {
 	if (transformation_lock || pending_unite)
@@ -1004,6 +1015,7 @@ void vr_point_cloud_aligner::draw(cgv::render::context& ctx)
 	b_renderer.disable(ctx);
 }
 
+///Calculates the intersection of a ray with abounding box
 bool vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pnt& ray_dir, const Box& box, point_cloud_types::Pnt& result)
 {
 	//Boxes are axis aligned defined by 2 coordinates. This means one can use the techniques of ECG raytracing slides s22
@@ -1022,7 +1034,7 @@ bool vr_point_cloud_aligner::box_ray_intersection(const Pnt& ray_start, const Pn
 	if (solution.isInvalid()) {
 		return false;
 	}
-	//I am not certain about this solution, somehow there should be a number € Tq that is the solution. Anyway the minimum should not be that far away from the solution
+	// The minimum is the solution
 	result = ray_start + ray_dir * solution.get_min();
 	return true;
 }
@@ -1163,10 +1175,7 @@ void vr_point_cloud_aligner::load_project_file(std::string projectFile)
 	//delete current stack and start a new one
 	program_state_stack.erase(program_state_stack.begin(), program_state_stack.end());
 	pss_count = 0;
-	//deleting the stack resets some variables too!
-	//disable during calcs
-	scale(-0.93);
-	//reset_componets_transformations();
+	scale(current_scaling_factor,translation_scale_active);
 	push_back_state();
 	post_redraw();
 }
@@ -1199,6 +1208,8 @@ void vr_point_cloud_aligner::save_project_file(std::string projectFile)
 	outFile.close();
 }
 
+
+///Calculates the average translation and rotation error of the loaded scan
 std::stringstream vr_point_cloud_aligner::calculate_alignment_error() 
 {
 	//obtain ground truth
@@ -1235,7 +1246,7 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 		Dir tempt(x, y, z);
 		
 		//Scaling that was used during the tests, has to be applied to all translations
-		tempt *= 0.07;
+		tempt *= current_scaling_factor;
 
 		gt_transl.push_back(tempt);
 		gt_rot.push_back(tempr);
@@ -1346,6 +1357,7 @@ std::stringstream vr_point_cloud_aligner::calculate_alignment_error()
 	return to_return;
 }
 
+///Transforms a vec3 from global to local space
 point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in, const Pnt& local_translation, const Qat& local_rotation)
 {
 	Pnt result = in - local_translation;
@@ -1353,6 +1365,7 @@ point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_local(const Pnt& in,
 	return result;
 }
 
+///Transforms a vec3 from local to global space
 point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_global(const Pnt& in, const Pnt& local_translation, const Qat& local_rotation)
 {
 	//	Pnt global_intersection_point = box_translation + box_rotation.apply(local_result);
@@ -1360,6 +1373,7 @@ point_cloud_types::Pnt vr_point_cloud_aligner::transform_to_global(const Pnt& in
 	return result;
 }
 
+///Calculates an intersection with a plain axis, returns an interval which represents the intersection if it is valid
 interval vr_point_cloud_aligner::calculate_intersectionintervall(float rayStart, float maxBoxCoord1, float maxBoxCoord2, float raydir)
 {
 	//X0 = px + t* x vx
@@ -1390,6 +1404,7 @@ interval vr_point_cloud_aligner::calculate_intersectionintervall(float rayStart,
 	return interval(t0, t1);
 }
 
+///Not needed due to VR method
 void vr_point_cloud_aligner::update_picked_point(cgv::render::context& ctx, int x, int y)
 {
 	have_picked_point = true;
@@ -1642,50 +1657,13 @@ void vr_point_cloud_aligner::display_seperation_selection()
 	post_redraw();
 }
 
-bool vr_point_cloud_aligner::scale(float scaling_difference)
+///scales the point cloud by factor new_scaling. If the bool is true translations are scaled too
+bool vr_point_cloud_aligner::scale(float new_scaling, bool scale_translations_too)
 {
-	//Note: does scaling affect the ground truth? Has the ground truth to be scaled along with the scans to be used?
-
-	if(pc.get_nr_components() < 1 || current_scaling_factor + scaling_difference < 0)
-		return false;
-
-	//Reverse old scaling
-
+	//apply new scaling
 	mat4 scaling_mat;
-	scaling_mat.identity();
 
-	scaling_mat(0, 0) = 1/current_scaling_factor;
-	scaling_mat(1, 1) = 1/current_scaling_factor;
-	scaling_mat(2, 2) = 1/current_scaling_factor;
-	scaling_mat(3, 3) = 1;
-	pc.transform(scaling_mat);
-	
-	//Scale rotations and translations as well
-	for (int x = 0; x < int(pc.get_nr_components()); ++x)
-	{
-		//vec4 temp(pc.component_translation(x).z(), pc.component_translation(x).y(), pc.component_translation(x).z(), 1);
-		//temp = temp * current_scaling_factor;//scaling_mat;
-		//pc.component_translation(x) *= (1 / current_scaling_factor);//(temp.x(), temp.y(), temp.z());
-		/*
-		mat4 rotation_mat;
-		pc.component_rotation(x).put_homogeneous_matrix(rotation_mat);
-		rotation_mat = rotation_mat	* scaling_mat;
-		mat3 rotation_mat_nh;
-		rotation_mat_nh(0, 0) = rotation_mat(0, 0);
-		rotation_mat_nh(0, 1) = rotation_mat(0, 1);
-		rotation_mat_nh(0, 2) = rotation_mat(0, 2);
-		rotation_mat_nh(1, 0) = rotation_mat(1, 0);
-		rotation_mat_nh(1, 1) = rotation_mat(1, 1);
-		rotation_mat_nh(1, 2) = rotation_mat(1, 2);
-		rotation_mat_nh(2, 0) = rotation_mat(2, 0);
-		rotation_mat_nh(2, 1) = rotation_mat(2, 1);
-		rotation_mat_nh(2, 2) = rotation_mat(2, 2);
-
-		pc.component_rotation(x).set(rotation_mat_nh);*/
-	}
-
-	//now apply new scaling
-	current_scaling_factor += scaling_difference;
+	current_scaling_factor = new_scaling;
 	scaling_mat.identity();
 	
 	scaling_mat(0, 0) = current_scaling_factor;
@@ -1695,28 +1673,10 @@ bool vr_point_cloud_aligner::scale(float scaling_difference)
 	pc.transform(scaling_mat);
 
 	//Scale rotations and translations as well
+	if(scale_translations_too)
 	for (int x = 0; x < int(pc.get_nr_components()); ++x)
 	{
-		//pc.component_translation(x) *= current_scaling_factor;
-		/*
-		vec4 temp(pc.component_translation(x).z(), pc.component_translation(x).y(), pc.component_translation(x).z(), 1);
-		temp = scaling_mat * temp;
-		
-		mat4 rotation_mat;
-		pc.component_rotation(x).put_homogeneous_matrix(rotation_mat);
-		rotation_mat = rotation_mat	* scaling_mat;
-		mat3 rotation_mat_nh;
-		rotation_mat_nh(0, 0) = rotation_mat(0, 0);
-		rotation_mat_nh(0, 1) = rotation_mat(0, 1);
-		rotation_mat_nh(0, 2) = rotation_mat(0, 2);
-		rotation_mat_nh(1, 0) = rotation_mat(1, 0);
-		rotation_mat_nh(1, 1) = rotation_mat(1, 1);
-		rotation_mat_nh(1, 2) = rotation_mat(1, 2);
-		rotation_mat_nh(2, 0) = rotation_mat(2, 0);
-		rotation_mat_nh(2, 1) = rotation_mat(2, 1);
-		rotation_mat_nh(2, 2) = rotation_mat(2, 2);
-
-		pc.component_rotation(x).set(rotation_mat_nh);*/
+		pc.component_translation(x) *= current_scaling_factor;
 	}
 	return true;
 }

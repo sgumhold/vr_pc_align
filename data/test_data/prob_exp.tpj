@@ -1,17 +1,16 @@
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_000.pct 0.146065 1.52825 -0.362182 0.690688 0.0903025 0.717378 -0.0128458 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_030.pct -1.76726 2.20158 -0.864142 0.983967 0.0807737 0.144175 -0.0670701 2
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_060.pct -0.231649 1.59152 -0.994055 0.269237 0.0781523 0.959856 -0.00892951 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_090.pct -0.700953 1.7328 -1.11706 -0.0379531 0.0761373 0.994234 0.0652856 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_120.pct -1.03494 1.74921 -1.02802 -0.250226 0.0447046 0.965388 0.0584304 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_150.pct -1.34431 1.70271 -0.695493 -0.514492 0.00411071 0.855962 0.0510843 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_180.pct -1.44945 1.76431 -0.366464 -0.689104 0.0402949 0.719599 0.0754206 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_210.pct -1.34578 1.68708 0.00252306 0.835841 -0.0142493 -0.548095 -0.0275549 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_240.pct -1.16757 1.74102 0.279215 0.921417 -0.0190469 -0.358425 -0.148857 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_270.pct -0.707985 1.58981 0.467182 0.996173 0.0279112 -0.0365429 -0.0743293 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_300.pct -0.264414 1.55369 0.359661 0.960907 0.0304176 0.261799 -0.0848125 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_330.pct 0.0217981 1.49965 0.0933126 0.868631 0.0656048 0.486626 -0.066116 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_bottom.pct -0.643602 0.827698 -0.35043 0.530984 0.502153 0.502192 -0.462278 13
- D:/Users/DBekele/Documents/cgvFramework/vr_pc_align/data/owl/pct/owl_top.pct -0.636814 2.44905 -0.293175 0.487971 -0.498139 0.500113 0.513448 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_000.pct 0.146065 1.52825 -0.362182 0.690688 0.0903025 0.717378 -0.0128458 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_060.pct -0.231649 1.59152 -0.994055 0.269237 0.0781523 0.959856 -0.00892951 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_090.pct -0.700953 1.7328 -1.11706 -0.0379531 0.0761373 0.994234 0.0652856 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_120.pct -1.03494 1.74921 -1.02802 -0.250226 0.0447046 0.965388 0.0584304 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_150.pct -1.34431 1.70271 -0.695493 -0.514492 0.00411071 0.855962 0.0510843 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_180.pct -1.44945 1.76431 -0.366464 -0.689104 0.0402949 0.719599 0.0754206 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_210.pct -1.34578 1.68708 0.00252306 0.835841 -0.0142493 -0.548095 -0.0275549 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_240.pct -1.16757 1.74102 0.279215 0.921417 -0.0190469 -0.358425 -0.148857 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_270.pct -0.707985 1.58981 0.467182 0.996173 0.0279112 -0.0365429 -0.0743293 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_300.pct -0.264414 1.55369 0.359661 0.960907 0.0304176 0.261799 -0.0848125 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_330.pct 0.0217981 1.49965 0.0933126 0.868631 0.0656048 0.486626 -0.066116 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_bottom.pct -0.643602 0.827698 -0.35043 0.530984 0.502153 0.502192 -0.462278 13
+ C:/Users/Daniel/Documents/studium/studium/Bachelorarbeit/pointviewer/vr_pc_align/data/owl/pct/owl_top.pct -0.636814 2.44905 -0.293175 0.487971 -0.498139 0.500113 0.513448 13
 Total actions: 409
 SCAN_DRAG: 157
 SCAN_PICK: 216
